@@ -1,8 +1,50 @@
-Showflow
+# Showflow
 
 Java-based show scheduling and staffing system that assigns workers across concrete set times, enforces availability and overlap rules, calculates coverage requirements, and generates a complete master day sheet with per-worker schedules.
 
-What it does
+## Browser tool
+
+GitHub Pages target from `.github/workflows/static.yml` (`path: '.'`):
+
+https://thebabeldragon.github.io/Showflow/
+
+That URL serves repository-root `index.html`. On an iPhone it is the live tool:
+
+workers → availability → shows → guest counts → concrete A/B/C set times → assignments → coverage → warnings → master day sheet
+
+Static launcher files (do not replace the Java model):
+
+* `index.html` — Pages document
+* `style.css` — mobile-first surface
+* `engine.js` — browser port of `src/main/java/com/schedule`
+* `app.js` — editor + solver UI
+* `.nojekyll` — Pages serves these files as-is
+
+Local preview:
+
+```bash
+python3 -m http.server 8080
+```
+
+Open `http://localhost:8080/index.html`.
+
+Pages source is GitHub Actions (`static.yml`). If the URL 404s, enable Settings → Pages → Source → GitHub Actions.
+
+## Babel launcher contract
+
+Manifest: `.babel/manifest.yml`
+
+Pages entrypoint documented there:
+
+* kind: `pages`
+* path: `index.html`
+* url: `https://thebabeldragon.github.io/Showflow/`
+
+Capabilities: `.babel/capabilities.yml`
+
+The Java package remains the authoritative scheduling model. The browser files implement the same rules so Pages can run without a JVM.
+
+## What it does
 
 Showflow takes:
 
@@ -20,7 +62,7 @@ It then produces:
 * A master day sheet
 * Individual worker schedules
 
-Coverage
+## Coverage
 
 The default staffing target is:
 
@@ -32,12 +74,13 @@ A show with 40 guests therefore requires:
 
 Each set time is evaluated independently.
 
-Set Types
+## Set Types
 
-Type	Duration	Rule
-A	30 min	Protected / hard conflict
-B	60 min	Up to 30 min overlap tolerated
-C	60 min	Overlap accepted with warning
+| Type | Duration | Rule |
+| --- | --- | --- |
+| A | 30 min | Protected / hard conflict |
+| B | 60 min | Up to 30 min overlap tolerated |
+| C | 60 min | Overlap accepted with warning |
 
 Assignments are selected using a scoring system that prefers workers with:
 
@@ -46,8 +89,18 @@ Assignments are selected using a scoring system that prefers workers with:
 3. Lower C overlap
 4. Fewer existing assignments
 
-Project Structure
+## Project Structure
 
+```
+index.html
+style.css
+engine.js
+app.js
+.nojekyll
+.babel/manifest.yml
+.babel/capabilities.yml
+.github/workflows/static.yml
+.github/workflows/maven-publish.yml
 src/main/java/com/schedule/
 ├── Main.java
 ├── SchedulingConfig.java
@@ -70,21 +123,19 @@ src/main/java/com/schedule/
 │   └── WorkerReportGenerator.java
 └── ui/
     └── AdminConsole.java
+```
 
-Build
+## Build
 
 Requires:
 
 * Java 17+
 * Maven
 
-Build:
-
+```bash
 mvn package
-
-Run
-
 java -jar target/showflow.jar
+```
 
 The console prompts for:
 
@@ -95,17 +146,17 @@ The console prompts for:
 5. Guest counts
 6. Concrete set times
 
-Output
-
 Generated reports are written to:
 
+```
 output/
 ├── master-day-sheet.txt
 └── <worker>-schedule.txt
+```
 
-The output/ directory is intentionally excluded from version control.
+The `output/` directory is intentionally excluded from version control.
 
-Design Principle
+## Design Principle
 
 Showflow schedules against real concrete set times, not abstract staffing blocks.
 
