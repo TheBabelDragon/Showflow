@@ -1,0 +1,49 @@
+babel: "0.1"
+identity:
+  name: showflow
+  owner: TheBabelDragon
+  repo: TheBabelDragon/Showflow
+  url: https://github.com/TheBabelDragon/Showflow
+  kind: scheduling-tool
+  version: "1.0.0"
+purpose: >
+  Show scheduling and staffing system. Workers, availability, shows,
+  guest counts, and concrete A/B/C set times produce assignments,
+  coverage, warnings, and a master day sheet. Java is the authoritative
+  model. The browser surface is a Pages port of that model.
+status: operational
+entrypoints:
+  - kind: pages
+    path: index.html
+    url: https://thebabeldragon.github.io/Showflow/
+  - kind: cli
+    command: java -jar target/showflow.jar
+    output: text
+  - kind: module
+    path: src/main/java/com/schedule
+runtime:
+  language: java
+  surface: browser
+  requires:
+    - java>=17
+    - maven
+inputs:
+  - name: workers
+  - name: availability
+  - name: shows
+  - name: guest-counts
+  - name: set-times
+outputs:
+  - name: assignments
+  - name: coverage
+  - name: warnings
+  - name: master-day-sheet
+  - name: worker-schedules
+capabilities:
+  - solve-schedule
+  - calculate-coverage
+  - emit-day-sheet
+  - pages-tool
+operations:
+  safe: [solve-schedule, calculate-coverage, emit-day-sheet, pages-tool]
+  mutation: []

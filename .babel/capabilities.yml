@@ -1,0 +1,21 @@
+babel: "0.1"
+repo: TheBabelDragon/Showflow
+capabilities:
+  - id: solve-schedule
+    kind: transform
+    description: Assign workers to concrete A/B/C set times using the Java scoring model.
+    mutation: false
+  - id: calculate-coverage
+    kind: inspect
+    description: Compute required staff from guest counts and report coverage gaps.
+    mutation: false
+  - id: emit-day-sheet
+    kind: render
+    description: Generate the master day sheet and per-worker schedules.
+    mutation: false
+  - id: pages-tool
+    kind: surface
+    description: Browser launcher served from repository-root index.html via static.yml.
+    mutation: false
+    target: index.html
+    url: https://thebabeldragon.github.io/Showflow/

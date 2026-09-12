@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0c1210">
+  <title>Showflow</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>SHOW<span>FLOW</span></h1>
+      <div class="sub">workers → availability → shows → guests → A/B/C sets → assignments</div>
+    </header>
+
+    <section class="panel">
+      <h2>Day</h2>
+      <label class="field">
+        <span>Day label</span>
+        <input id="day-label" value="Saturday Floor">
+      </label>
+      <div class="transport">
+        <button id="load-sample">Load sample day</button>
+        <button id="solve" class="primary">Solve schedule</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Workers + availability</h2>
+      <div id="workers"></div>
+      <div class="transport">
+        <button id="add-worker">Add worker</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Shows + guest counts + set times</h2>
+      <div id="shows"></div>
+      <div class="transport">
+        <button id="add-show">Add show</button>
+      </div>
+    </section>
+
+    <section class="panel" id="result-panel">
+      <h2>Assignments · coverage · warnings · master day sheet</h2>
+      <div id="result"></div>
+    </section>
+  </div>
+  <script src="engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
