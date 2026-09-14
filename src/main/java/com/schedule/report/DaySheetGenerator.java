@@ -2,10 +2,10 @@ package com.schedule.report;
 
 import com.schedule.SchedulingConfig;
 import com.schedule.engine.SolveResult;
+import com.schedule.model.Assignment;
 import com.schedule.model.CoverageGap;
-import com.schedule.model.FillSlot;
 import com.schedule.model.Show;
-import com.schedule.model.SetTime;
+import com.schedule.model.Showtime;
 import com.schedule.model.Worker;
 
 import java.util.Comparator;
@@ -24,16 +24,10 @@ public class DaySheetGenerator {
         StringBuilder out = new StringBuilder();
 
         Map<String, Worker> workerById = workers.stream()
-                .collect(Collectors.toMap(
-                        Worker::getId,
-                        worker -> worker
-                ));
+                .collect(Collectors.toMap(Worker::getId, worker -> worker));
 
         Map<String, Show> showById = shows.stream()
-                .collect(Collectors.toMap(
-                        Show::getId,
-                        show -> show
-                ));
+                .collect(Collectors.toMap(Show::getId, show -> show));
 
         out.append("============================================================\n");
         out.append("SHOWFLOW MASTER DAY SHEET\n");
@@ -62,8 +56,7 @@ public class DaySheetGenerator {
         out.append("------------------------------------------------------------\n");
 
         for (Show show : shows) {
-            int required =
-                    SchedulingConfig.workersRequired(show.getGuests());
+            int required = SchedulingConfig.workersRequired(show.getGuests());
 
             out.append(show.getName())
                     .append(" [")
@@ -72,23 +65,31 @@ public class DaySheetGenerator {
                     .append(show.getGuests())
                     .append(" guests, ")
                     .append(required)
-                    .append(" workers per set\n");
+                    .append(" workers per showtime\n");
 
-            for (SetTime setTime : show.getSetTimes()) {
+            for (Showtime showtime : show.getShowtimes()) {
                 int assigned = (int) result.getAssignments().stream()
                         .filter(slot ->
                                 slot.getShowId().equals(show.getId())
-                                        && slot.getSetTimeId()
-                                        .equals(setTime.getId())
+                                        && slot.getShowtimeId().equals(showtime.getId())
                         )
-                        .map(FillSlot::getWorkerId)
+                        .map(Assignment::getWorkerId)
                         .distinct()
                         .count();
 
-                out.append("  ")
-                        .append(setTime.getType())
-                        .append(" ")
-                        .append(setTime.getRange())
+                out.append("  room ")
+                        .append(showtime.getRoomNumber())
+                        .append("  ")
+                        .append(showtime.getStart())
+                        .append(" +")
+                        .append(showtime.getDurationMinutes())
+                        .append("m")
+                        .append("  A ")
+                        .append(showtime.getAWindow())
+                        .append("  B ")
+                        .append(showtime.getBWindow())
+                        .append("  C ")
+                        .append(showtime.getCEnd())
                         .append(" -> ")
                         .append(assigned)
                         .append("/")
@@ -104,27 +105,14 @@ public class DaySheetGenerator {
 
         result.getAssignments().stream()
                 .sorted(Comparator
-                        .comparing((FillSlot slot) ->
-                                slot.getARange() != null
-                                        ? slot.getARange().start()
-                                        : slot.getBRange() != null
-                                        ? slot.getBRange().start()
-                                        : slot.getCRange().start())
-                        .thenComparing(FillSlot::getShowId)
-                        .thenComparing(FillSlot::getSetTimeId))
-                .forEach(slot -> {
-                    Worker worker =
-                            workerById.get(slot.getWorkerId());
-
-                    Show show =
-                            showById.get(slot.getShowId());
-
-                    out.append(formatAssignment(
-                            worker,
-                            show,
-                            slot
-                    ));
-                });
+                        .comparing((Assignment slot) -> slot.getAWindow().start())
+                        .thenComparing(Assignment::getShowId)
+                        .thenComparing(Assignment::getShowtimeId))
+                .forEach(slot -> out.append(formatAssignment(
+                        workerById.get(slot.getWorkerId()),
+                        showById.get(slot.getShowId()),
+                        slot
+                )));
 
         out.append("\nCOVERAGE GAPS\n");
         out.append("------------------------------------------------------------\n");
@@ -134,12 +122,9 @@ public class DaySheetGenerator {
         } else {
             for (CoverageGap gap : result.getCoverageGaps()) {
                 Show show = showById.get(gap.showId());
-
-                out.append(show == null
-                                ? gap.showId()
-                                : show.getName())
+                out.append(show == null ? gap.showId() : show.getName())
                         .append(" / ")
-                        .append(gap.setTimeId())
+                        .append(gap.showtimeId())
                         .append(": missing ")
                         .append(gap.missing())
                         .append(" worker(s)\n");
@@ -153,9 +138,7 @@ public class DaySheetGenerator {
             out.append("NONE\n");
         } else {
             result.getWarnings().forEach(warning ->
-                    out.append("- ")
-                            .append(warning)
-                            .append("\n")
+                    out.append("- ").append(warning).append("\n")
             );
         }
 
@@ -166,45 +149,22 @@ public class DaySheetGenerator {
         return out.toString();
     }
 
-    private String formatAssignment(
-            Worker worker,
-            Show show,
-            FillSlot slot
-    ) {
-        String workerName =
-                worker == null
-                        ? slot.getWorkerId()
-                        : worker.getName();
-
-        String showName =
-                show == null
-                        ? slot.getShowId()
-                        : show.getName();
-
-        SetTime.Type type = null;
-        String range = "";
-
-        if (slot.getARange() != null) {
-            type = SetTime.Type.A;
-            range = slot.getARange().toString();
-        } else if (slot.getBRange() != null) {
-            type = SetTime.Type.B;
-            range = slot.getBRange().toString();
-        } else if (slot.getCRange() != null) {
-            type = SetTime.Type.C;
-            range = slot.getCRange().toString();
-        }
+    private String formatAssignment(Worker worker, Show show, Assignment slot) {
+        String workerName = worker == null ? slot.getWorkerId() : worker.getName();
+        String showName = show == null ? slot.getShowId() : show.getName();
+        String lead = slot.isLead() ? " LEAD" : "";
+        String warn = slot.hasDiagnostics() ? " [WARNINGS]" : "";
 
         return String.format(
-                "%-12s %-24s %-4s %-17s coverage-slot=%d%s%n",
+                "%-12s %-20s rm%-2d %-5s C=%-5s slot=%d%s%s%n",
                 workerName,
                 showName,
-                type,
-                range,
+                slot.getRoomNumber(),
+                slot.getAWindow().end(),
+                slot.getCEnd(),
                 slot.getCoverageSlot(),
-                slot.hasWarnings()
-                        ? " [WARNINGS]"
-                        : ""
+                lead,
+                warn
         );
     }
 }

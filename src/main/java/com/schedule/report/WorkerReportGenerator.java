@@ -1,8 +1,8 @@
 package com.schedule.report;
 
 import com.schedule.engine.SolveResult;
-import com.schedule.model.FillSlot;
-import com.schedule.model.OverlapWarning;
+import com.schedule.model.Assignment;
+import com.schedule.model.Diagnostic;
 import com.schedule.model.Show;
 import com.schedule.model.Worker;
 
@@ -19,17 +19,11 @@ public class WorkerReportGenerator {
             SolveResult result
     ) {
         Map<String, Show> showById = shows.stream()
-                .collect(Collectors.toMap(
-                        Show::getId,
-                        show -> show
-                ));
+                .collect(Collectors.toMap(Show::getId, show -> show));
 
-        List<FillSlot> assignments = result.getAssignments().stream()
-                .filter(slot ->
-                        slot.getWorkerId().equals(worker.getId()))
-                .sorted(Comparator.comparing(
-                        this::startTime
-                ))
+        List<Assignment> assignments = result.getAssignments().stream()
+                .filter(slot -> slot.getWorkerId().equals(worker.getId()))
+                .sorted(Comparator.comparing(slot -> slot.getAWindow().start()))
                 .toList();
 
         StringBuilder out = new StringBuilder();
@@ -49,26 +43,25 @@ public class WorkerReportGenerator {
         if (assignments.isEmpty()) {
             out.append("NONE\n");
         } else {
-            for (FillSlot slot : assignments) {
+            for (Assignment slot : assignments) {
                 Show show = showById.get(slot.getShowId());
 
                 out.append("- ")
-                        .append(show == null
-                                ? slot.getShowId()
-                                : show.getName())
+                        .append(show == null ? slot.getShowId() : show.getName())
+                        .append(" / room ")
+                        .append(slot.getRoomNumber())
                         .append(" / ")
-                        .append(slot.getSetTimeId())
-                        .append(" / ")
-                        .append(slotType(slot))
-                        .append(" / ")
-                        .append(slotRange(slot))
+                        .append(slot.getShowtimeId())
+                        .append(" / start ")
+                        .append(slot.getAWindow().end())
+                        .append(" / C ")
+                        .append(slot.getCEnd())
+                        .append(slot.isLead() ? " / LEAD" : "")
                         .append("\n");
 
-                if (slot.hasWarnings()) {
-                    for (OverlapWarning warning : slot.getWarnings()) {
-                        out.append("    WARNING: ")
-                                .append(warning)
-                                .append("\n");
+                if (slot.hasDiagnostics()) {
+                    for (Diagnostic warning : slot.getDiagnostics()) {
+                        out.append("    WARNING: ").append(warning).append("\n");
                     }
                 }
             }
@@ -78,11 +71,9 @@ public class WorkerReportGenerator {
                 .append(assignments.size())
                 .append("\n");
 
-        List<OverlapWarning> workerWarnings =
-                result.getWarnings().stream()
-                        .filter(warning ->
-                                warning.workerId().equals(worker.getId()))
-                        .toList();
+        List<Diagnostic> workerWarnings = result.getWarnings().stream()
+                .filter(warning -> worker.getId().equals(warning.workerId()))
+                .toList();
 
         out.append("\nOVERLAP WARNINGS\n");
         out.append("------------------------------------------------------------\n");
@@ -90,10 +81,8 @@ public class WorkerReportGenerator {
         if (workerWarnings.isEmpty()) {
             out.append("NONE\n");
         } else {
-            for (OverlapWarning warning : workerWarnings) {
-                out.append("- ")
-                        .append(warning)
-                        .append("\n");
+            for (Diagnostic warning : workerWarnings) {
+                out.append("- ").append(warning).append("\n");
             }
         }
 
@@ -102,41 +91,5 @@ public class WorkerReportGenerator {
         out.append("============================================================\n");
 
         return out.toString();
-    }
-
-    private java.time.LocalTime startTime(FillSlot slot) {
-        if (slot.getARange() != null) {
-            return slot.getARange().start();
-        }
-
-        if (slot.getBRange() != null) {
-            return slot.getBRange().start();
-        }
-
-        return slot.getCRange().start();
-    }
-
-    private String slotType(FillSlot slot) {
-        if (slot.getARange() != null) {
-            return "A";
-        }
-
-        if (slot.getBRange() != null) {
-            return "B";
-        }
-
-        return "C";
-    }
-
-    private String slotRange(FillSlot slot) {
-        if (slot.getARange() != null) {
-            return slot.getARange().toString();
-        }
-
-        if (slot.getBRange() != null) {
-            return slot.getBRange().toString();
-        }
-
-        return slot.getCRange().toString();
     }
 }

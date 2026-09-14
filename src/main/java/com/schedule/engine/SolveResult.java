@@ -1,8 +1,8 @@
 package com.schedule.engine;
 
+import com.schedule.model.Assignment;
 import com.schedule.model.CoverageGap;
-import com.schedule.model.FillSlot;
-import com.schedule.model.OverlapWarning;
+import com.schedule.model.Diagnostic;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -10,21 +10,21 @@ import java.util.List;
 
 public class SolveResult {
 
-    private final List<FillSlot> assignments;
+    private final List<Assignment> assignments;
     private final List<CoverageGap> coverageGaps;
-    private final List<OverlapWarning> warnings;
+    private final List<Diagnostic> warnings;
 
     public SolveResult(
-            List<FillSlot> assignments,
+            List<Assignment> assignments,
             List<CoverageGap> coverageGaps,
-            List<OverlapWarning> warnings
+            List<Diagnostic> warnings
     ) {
         this.assignments = new ArrayList<>(assignments);
         this.coverageGaps = new ArrayList<>(coverageGaps);
         this.warnings = new ArrayList<>(warnings);
     }
 
-    public List<FillSlot> getAssignments() {
+    public List<Assignment> getAssignments() {
         return Collections.unmodifiableList(assignments);
     }
 
@@ -32,13 +32,12 @@ public class SolveResult {
         return Collections.unmodifiableList(coverageGaps);
     }
 
-    public List<OverlapWarning> getWarnings() {
+    public List<Diagnostic> getWarnings() {
         return Collections.unmodifiableList(warnings);
     }
 
     public boolean isFullyCovered() {
-        return coverageGaps.stream()
-                .allMatch(CoverageGap::isCovered);
+        return coverageGaps.stream().allMatch(CoverageGap::isCovered);
     }
 
     public int assignmentCount() {
@@ -46,8 +45,6 @@ public class SolveResult {
     }
 
     public int gapCount() {
-        return coverageGaps.stream()
-                .mapToInt(CoverageGap::missing)
-                .sum();
+        return coverageGaps.stream().mapToInt(CoverageGap::missing).sum();
     }
 }

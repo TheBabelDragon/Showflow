@@ -1,6 +1,8 @@
 # Showflow
 
-Java-based show scheduling and staffing system that assigns workers across concrete set times, enforces availability and overlap rules, calculates coverage requirements, and generates a complete master day sheet with per-worker schedules.
+Java-based show scheduling and staffing system. The scheduler reasons over
+showtimes, rooms, workers, and a conflict graph. A/B/C are derived operational
+windows, not independently entered set types.
 
 ## Browser tool
 
@@ -10,7 +12,7 @@ https://thebabeldragon.github.io/Showflow/
 
 That URL serves repository-root `index.html`. On an iPhone it is the live tool:
 
-workers → availability → shows → guest counts → concrete A/B/C set times → assignments → coverage → warnings → master day sheet
+workers → availability → shows → guests → showtimes (room + start + duration) → derived A/B/C → assignments → coverage → warnings → master day sheet
 
 Static launcher files (do not replace the Java model):
 
@@ -44,50 +46,88 @@ Capabilities: `.babel/capabilities.yml`
 
 The Java package remains the authoritative scheduling model. The browser files implement the same rules so Pages can run without a JVM.
 
-## What it does
+## Timing model
 
-Showflow takes:
+Each showtime is entered as room + start + duration.
 
-* Workers and their availability
-* Shows and guest counts
-* Concrete A/B/C set times
-* Staffing rules and overlap constraints
+```
+A = [start - 30m, start]
+C = start + duration          // end event, not a range
+B = [C - 45m, C]
+```
 
-It then produces:
+Example: start 19:00, duration 60.
 
-* Worker assignments
-* Per-set coverage calculations
-* Coverage gaps
-* Overlap warnings
-* A master day sheet
-* Individual worker schedules
+* A 18:30-19:00
+* B 19:15-20:00
+* C 20:00
 
-## Coverage
+Coverage is computed per showtime, not per A/B/C fragment.
 
-The default staffing target is:
+## Engine shape
 
-1 worker per 10 guests
+```
+HARD CONSTRAINTS
+      |
+ reject / eligible
+      |
+ SOFT SCORING
+   coverage · proximity · room-family · lead
+      |
+ best arbitration
+      |
+ DIAGNOSTICS  (always emitted)
+      |
+ assignments + warnings
+```
 
-A show with 40 guests therefore requires:
+Warnings are not a scheduler option. The constraint engine decides legality.
+The diagnostic engine reports undesirable conditions even when an assignment
+is legal.
 
-4 workers per concrete set time
+### Hard constraints
 
-Each set time is evaluated independently.
+* availability across the operational span `[A start, C]`
+* no duplicate worker on the same showtime
+* ordinary A conflict
+* excessive B overlap (over 30 minutes)
 
-## Set Types
+### Named first-set A exception
 
-| Type | Duration | Rule |
-| --- | --- | --- |
-| A | 30 min | Protected / hard conflict |
-| B | 60 min | Up to 30 min overlap tolerated |
-| C | 60 min | Overlap accepted with warning |
+The first-set cohort is the A-window connected component that contains every
+showtime sharing the day's earliest start.
 
-Assignments are selected using a scoring system that prefers workers with:
+Inside that cohort only:
 
-1. No prohibited overlap
-2. Lower B overlap
-3. Lower C overlap
-4. Fewer existing assignments
+* A overlap is normally a hard conflict
+* exception: A overlap is permitted when each affected room has fewer than 10 guests
+* the warning is still emitted
+* after the opening cohort, normal A protection returns
+
+### Soft preferences
+
+Very strong:
+
+* lead weight for the show's theater
+* keep a worker in their established / preferred zone (MAIN 1-4, SIDE 5-7)
+* avoid unnecessary A overlap
+* same-family room pairing, especially 1-2, 1-3, 2-4, 5-6, 6-7
+
+Moderate:
+
+* lower B overlap
+* lower C proximity
+* balanced workload
+* fewer zone transitions
+
+Zone mismatch never rejects a candidate.
+
+### Lead
+
+Lead is a role on a showtime, not a separate assignment. Exactly one assigned
+worker is arbitrated into Lead using theater-specific weight 0-10 plus zone
+continuity, conflict pressure, and existing lead load. A 10/10 worker who
+cannot legally cover the showtime does not become Lead.
 
 ## Project Structure
 
@@ -103,21 +143,27 @@ app.js
 .github/workflows/maven-publish.yml
 src/main/java/com/schedule/
 ├── Main.java
+├── SampleRunner.java
 ├── SchedulingConfig.java
 ├── engine/
 │   ├── AssignmentScore.java
 │   ├── AssignmentSolver.java
+│   ├── ConstraintEngine.java
 │   ├── CoverageCalculator.java
-│   ├── OverlapAnalyzer.java
+│   ├── DiagnosticEngine.java
+│   ├── LeadArbitrator.java
+│   ├── ScheduleContext.java
+│   ├── SoftScorer.java
 │   └── SolveResult.java
 ├── model/
+│   ├── Assignment.java
 │   ├── CoverageGap.java
-│   ├── FillSlot.java
-│   ├── OverlapWarning.java
-│   ├── SetTime.java
+│   ├── Diagnostic.java
 │   ├── Show.java
+│   ├── Showtime.java
 │   ├── TimeRange.java
-│   └── Worker.java
+│   ├── Worker.java
+│   └── Zone.java
 ├── report/
 │   ├── DaySheetGenerator.java
 │   └── WorkerReportGenerator.java
@@ -137,14 +183,24 @@ mvn package
 java -jar target/showflow.jar
 ```
 
+Non-interactive sample:
+
+```bash
+mvn -q -DincludeScope=compile compile exec:java -Dexec.mainClass=com.schedule.SampleRunner
+```
+
+Or after `javac`:
+
+```bash
+java -cp target/classes com.schedule.SampleRunner
+```
+
 The console prompts for:
 
 1. Day label
-2. Workers
-3. Worker availability
-4. Shows
-5. Guest counts
-6. Concrete set times
+2. Workers, zone preference, lead weight, availability
+3. Shows, theater, guest counts
+4. Showtimes: room, start, duration
 
 Generated reports are written to:
 
@@ -158,8 +214,7 @@ The `output/` directory is intentionally excluded from version control.
 
 ## Design Principle
 
-Showflow schedules against real concrete set times, not abstract staffing blocks.
+Showflow schedules against real showtimes, rooms, and workers.
 
-Every concrete set time gets its own coverage requirement, and every assignment is checked against worker availability and overlap rules.
-
-The result is a complete operational day sheet rather than merely a list of staffing recommendations.
+A/B/C exist so operations can see the derived windows. They are not the
+objects the solver assigns.

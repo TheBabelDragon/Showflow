@@ -1,9 +1,10 @@
 package com.schedule.ui;
 
-import com.schedule.model.SetTime;
 import com.schedule.model.Show;
+import com.schedule.model.Showtime;
 import com.schedule.model.TimeRange;
 import com.schedule.model.Worker;
+import com.schedule.model.Zone;
 
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -31,23 +32,28 @@ public class AdminConsole {
 
             Worker worker = new Worker(id, name);
 
+            String zone = readOptional("Preferred zone (MAIN/SIDE/blank): ");
+            if ("MAIN".equalsIgnoreCase(zone)) {
+                worker.setPreferredZone(Zone.MAIN);
+            } else if ("SIDE".equalsIgnoreCase(zone)) {
+                worker.setPreferredZone(Zone.SIDE);
+            }
+
+            int leadWeight = readInt("Lead weight 0-10 (default theater): ", 0);
+            if (leadWeight <= 10) {
+                worker.setLeadWeight(null, leadWeight);
+            }
+
             int availabilityCount =
                     readInt("Number of availability windows: ", 0);
 
             for (int j = 0; j < availabilityCount; j++) {
-                System.out.println(
-                        "  Availability window " + (j + 1)
-                );
+                System.out.println("  Availability window " + (j + 1));
 
-                LocalTime start =
-                        readTime("  Start (HH:mm): ");
+                LocalTime start = readTime("  Start (HH:mm): ");
+                LocalTime end = readTime("  End (HH:mm): ");
 
-                LocalTime end =
-                        readTime("  End (HH:mm): ");
-
-                worker.addAvailability(
-                        new TimeRange(start, end)
-                );
+                worker.addAvailability(new TimeRange(start, end));
             }
 
             workers.add(worker);
@@ -66,34 +72,24 @@ public class AdminConsole {
 
             String id = readRequired("Show ID: ");
             String name = readRequired("Show name: ");
+            String theater = readOptional("Theater (blank = default): ");
             int guests = readInt("Guest count: ", 0);
 
-            Show show = new Show(id, name, guests);
+            Show show = theater.isBlank()
+                    ? new Show(id, name, guests)
+                    : new Show(id, name, guests, theater);
 
-            int setCount =
-                    readInt("Number of set times: ", 0);
+            int showtimeCount = readInt("Number of showtimes: ", 0);
 
-            for (int j = 0; j < setCount; j++) {
-                System.out.println(
-                        "  Set time " + (j + 1)
-                );
+            for (int j = 0; j < showtimeCount; j++) {
+                System.out.println("  Showtime " + (j + 1));
 
-                String setId =
-                        readRequired("  Set ID: ");
+                String showtimeId = readRequired("  Showtime ID: ");
+                int room = readInt("  Room (1-7): ", 1);
+                LocalTime start = readTime("  Start (HH:mm): ");
+                int duration = readInt("  Duration minutes: ", 1);
 
-                SetTime.Type type =
-                        readSetType("  Type (A/B/C): ");
-
-                LocalTime start =
-                        readTime("  Start (HH:mm): ");
-
-                show.addSetTime(
-                        new SetTime(
-                                setId,
-                                type,
-                                start
-                        )
-                );
+                show.addShowtime(new Showtime(showtimeId, room, start, duration));
             }
 
             shows.add(show);
@@ -109,41 +105,31 @@ public class AdminConsole {
     private String readRequired(String prompt) {
         while (true) {
             System.out.print(prompt);
-
             String value = scanner.nextLine().trim();
-
             if (!value.isEmpty()) {
                 return value;
             }
-
             System.out.println("Value is required.");
         }
     }
 
-    private int readInt(
-            String prompt,
-            int minimum
-    ) {
+    private String readOptional(String prompt) {
+        System.out.print(prompt);
+        return scanner.nextLine().trim();
+    }
+
+    private int readInt(String prompt, int minimum) {
         while (true) {
             System.out.print(prompt);
-
             String input = scanner.nextLine().trim();
-
             try {
                 int value = Integer.parseInt(input);
-
                 if (value >= minimum) {
                     return value;
                 }
-
-                System.out.println(
-                        "Value must be at least " + minimum + "."
-                );
-
+                System.out.println("Value must be at least " + minimum + ".");
             } catch (NumberFormatException e) {
-                System.out.println(
-                        "Enter a valid integer."
-                );
+                System.out.println("Enter a valid integer.");
             }
         }
     }
@@ -151,36 +137,11 @@ public class AdminConsole {
     private LocalTime readTime(String prompt) {
         while (true) {
             System.out.print(prompt);
-
             String input = scanner.nextLine().trim();
-
             try {
                 return LocalTime.parse(input);
-
             } catch (Exception e) {
-                System.out.println(
-                        "Enter time as HH:mm."
-                );
-            }
-        }
-    }
-
-    private SetTime.Type readSetType(String prompt) {
-        while (true) {
-            System.out.print(prompt);
-
-            String input =
-                    scanner.nextLine()
-                            .trim()
-                            .toUpperCase();
-
-            try {
-                return SetTime.Type.valueOf(input);
-
-            } catch (IllegalArgumentException e) {
-                System.out.println(
-                        "Enter A, B, or C."
-                );
+                System.out.println("Enter time as HH:mm.");
             }
         }
     }
