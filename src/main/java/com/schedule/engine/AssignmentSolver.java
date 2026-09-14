@@ -1,278 +1,122 @@
 package com.schedule.engine;
 
 import com.schedule.SchedulingConfig;
+import com.schedule.model.Assignment;
 import com.schedule.model.CoverageGap;
-import com.schedule.model.FillSlot;
-import com.schedule.model.OverlapWarning;
-import com.schedule.model.SetTime;
+import com.schedule.model.Diagnostic;
 import com.schedule.model.Show;
-import com.schedule.model.TimeRange;
 import com.schedule.model.Worker;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class AssignmentSolver {
 
-    private final OverlapAnalyzer overlapAnalyzer;
+    private final ConstraintEngine constraintEngine;
+    private final SoftScorer softScorer;
+    private final LeadArbitrator leadArbitrator;
+    private final DiagnosticEngine diagnosticEngine;
     private final CoverageCalculator coverageCalculator;
 
     public AssignmentSolver() {
-        this.overlapAnalyzer = new OverlapAnalyzer();
+        this.constraintEngine = new ConstraintEngine();
+        this.softScorer = new SoftScorer();
+        this.leadArbitrator = new LeadArbitrator(softScorer);
+        this.diagnosticEngine = new DiagnosticEngine(constraintEngine);
         this.coverageCalculator = new CoverageCalculator();
     }
 
-    public SolveResult solve(
-            List<Worker> workers,
-            List<Show> shows
-    ) {
-        List<FillSlot> assignments = new ArrayList<>();
-        List<OverlapWarning> warnings = new ArrayList<>();
+    public SolveResult solve(List<Worker> workers, List<Show> shows) {
+        ScheduleContext context = ScheduleContext.from(shows);
+        List<Assignment> assignments = new ArrayList<>();
 
-        for (Show show : shows) {
-            int requiredWorkers =
-                    SchedulingConfig.workersRequired(show.getGuests());
+        for (ScheduleContext.AnchoredShowtime anchored : context.showtimes()) {
+            int required = SchedulingConfig.workersRequired(anchored.guests());
+            Set<String> assignedWorkerIds = new HashSet<>();
 
-            for (SetTime setTime : show.getSetTimes()) {
+            for (int slot = 0; slot < required; slot++) {
+                Worker bestWorker = null;
+                AssignmentScore bestScore = null;
 
-                Set<String> assignedWorkerIds = new HashSet<>();
-
-                for (int slot = 0; slot < requiredWorkers; slot++) {
-
-                    Worker bestWorker = workers.stream()
-                            .filter(worker ->
-                                    !assignedWorkerIds.contains(worker.getId()))
-                            .filter(worker ->
-                                    isAvailable(worker, setTime))
-                            .filter(worker ->
-                                    isCompatible(worker, setTime, assignments))
-                            .min(Comparator.comparingLong(worker ->
-                                    scoreWorker(
-                                            worker,
-                                            setTime,
-                                            assignments
-                                    ).totalScore()))
-                            .orElse(null);
-
-                    if (bestWorker == null) {
+                for (Worker worker : workers) {
+                    if (assignedWorkerIds.contains(worker.getId())) {
+                        continue;
+                    }
+                    if (!constraintEngine.eligible(worker, anchored, assignments, context)) {
                         continue;
                     }
 
-                    FillSlot fillSlot = createFillSlot(
-                            bestWorker,
-                            show,
-                            setTime,
-                            slot
-                    );
-
-                    List<OverlapWarning> slotWarnings =
-                            analyzeAgainstWorkerAssignments(
-                                    bestWorker,
-                                    fillSlot,
-                                    assignments
-                            );
-
-                    fillSlotWarnings(fillSlot, slotWarnings);
-
-                    assignments.add(fillSlot);
-                    warnings.addAll(slotWarnings);
-                    assignedWorkerIds.add(bestWorker.getId());
+                    AssignmentScore score = softScorer.score(worker, anchored, assignments);
+                    if (bestWorker == null
+                            || score.coverageScore() > bestScore.coverageScore()
+                            || (score.coverageScore() == bestScore.coverageScore()
+                            && worker.getId().compareTo(bestWorker.getId()) < 0)) {
+                        bestWorker = worker;
+                        bestScore = score;
+                    }
                 }
+
+                if (bestWorker == null) {
+                    continue;
+                }
+
+                Assignment assignment = new Assignment(
+                        bestWorker.getId(),
+                        anchored.show().getId(),
+                        anchored.showtime(),
+                        slot
+                );
+                assignment.setScore(bestScore.coverageScore());
+                assignments.add(assignment);
+                assignedWorkerIds.add(bestWorker.getId());
             }
+
+            leadArbitrator.arbitrate(anchored, assignments, workers);
         }
 
-        List<CoverageGap> gaps =
-                coverageCalculator.calculate(shows, assignments);
+        Map<String, Worker> workerById = workers.stream()
+                .collect(Collectors.toMap(Worker::getId, worker -> worker));
 
-        return new SolveResult(assignments, gaps, warnings);
-    }
+        List<Diagnostic> warnings = new ArrayList<>();
+        List<Assignment> chronological = assignments.stream()
+                .sorted(Comparator
+                        .comparing((Assignment assignment) -> assignment.getAWindow().start())
+                        .thenComparing(Assignment::getShowtimeId)
+                        .thenComparing(Assignment::getWorkerId))
+                .toList();
 
-    private boolean isAvailable(
-            Worker worker,
-            SetTime setTime
-    ) {
-        return worker.isAvailable(setTime.getRange());
-    }
-
-    private boolean isCompatible(
-            Worker worker,
-            SetTime setTime,
-            List<FillSlot> assignments
-    ) {
-        FillSlot candidate = createFillSlot(
-                worker,
-                null,
-                setTime,
-                0
-        );
-
-        for (FillSlot existing : assignments) {
-            if (!existing.getWorkerId().equals(worker.getId())) {
+        List<Assignment> seen = new ArrayList<>();
+        for (Assignment assignment : chronological) {
+            Worker worker = workerById.get(assignment.getWorkerId());
+            ScheduleContext.AnchoredShowtime anchored =
+                    context.find(assignment.getShowId(), assignment.getShowtimeId());
+            if (worker == null || anchored == null) {
+                seen.add(assignment);
                 continue;
             }
 
-            if (hasHardAConflict(existing, candidate)) {
-                return false;
-            }
-
-            if (hasExcessiveBOverlap(existing, candidate)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private boolean hasHardAConflict(
-            FillSlot existing,
-            FillSlot candidate
-    ) {
-        TimeRange existingA = existing.getARange();
-        TimeRange candidateA = candidate.getARange();
-
-        if (existingA != null && candidateA != null
-                && existingA.overlaps(candidateA)) {
-            return true;
-        }
-
-        if (existingA != null && candidate.getBRange() != null
-                && existingA.overlaps(candidate.getBRange())) {
-            return true;
-        }
-
-        if (existingA != null && candidate.getCRange() != null
-                && existingA.overlaps(candidate.getCRange())) {
-            return true;
-        }
-
-        if (candidateA != null && existing.getBRange() != null
-                && candidateA.overlaps(existing.getBRange())) {
-            return true;
-        }
-
-        if (candidateA != null && existing.getCRange() != null
-                && candidateA.overlaps(existing.getCRange())) {
-            return true;
-        }
-
-        return false;
-    }
-
-    private boolean hasExcessiveBOverlap(
-            FillSlot existing,
-            FillSlot candidate
-    ) {
-        if (existing.getBRange() == null
-                || candidate.getBRange() == null) {
-            return false;
-        }
-
-        return existing.getBRange()
-                .overlapMinutes(candidate.getBRange())
-                > SchedulingConfig.B_OVERLAP_TOLERANCE_MINUTES;
-    }
-
-    private AssignmentScore scoreWorker(
-            Worker worker,
-            SetTime setTime,
-            List<FillSlot> assignments
-    ) {
-        FillSlot candidate = createFillSlot(
-                worker,
-                null,
-                setTime,
-                0
-        );
-
-        long bOverlap = 0;
-        long cOverlap = 0;
-        int existingCount = 0;
-
-        for (FillSlot existing : assignments) {
-            if (!existing.getWorkerId().equals(worker.getId())) {
-                continue;
-            }
-
-            existingCount++;
-
-            if (existing.getBRange() != null
-                    && candidate.getBRange() != null) {
-                bOverlap += existing.getBRange()
-                        .overlapMinutes(candidate.getBRange());
-            }
-
-            if (existing.getCRange() != null
-                    && candidate.getCRange() != null) {
-                cOverlap += existing.getCRange()
-                        .overlapMinutes(candidate.getCRange());
-            }
-        }
-
-        return new AssignmentScore(
-                bOverlap,
-                cOverlap,
-                existingCount
-        );
-    }
-
-    private List<OverlapWarning> analyzeAgainstWorkerAssignments(
-            Worker worker,
-            FillSlot candidate,
-            List<FillSlot> assignments
-    ) {
-        List<OverlapWarning> warnings = new ArrayList<>();
-
-        for (FillSlot existing : assignments) {
-            if (!existing.getWorkerId().equals(worker.getId())) {
-                continue;
-            }
-
-            warnings.addAll(
-                    overlapAnalyzer.analyze(existing, candidate)
+            List<Diagnostic> slotDiagnostics = diagnosticEngine.evaluate(
+                    worker,
+                    anchored,
+                    assignment,
+                    seen,
+                    assignments,
+                    context,
+                    workerById
             );
+            for (Diagnostic diagnostic : slotDiagnostics) {
+                assignment.addDiagnostic(diagnostic);
+            }
+            warnings.addAll(slotDiagnostics);
+            seen.add(assignment);
         }
 
-        return warnings;
-    }
-
-    private FillSlot createFillSlot(
-            Worker worker,
-            Show show,
-            SetTime setTime,
-            int coverageSlot
-    ) {
-        TimeRange range = setTime.getRange();
-
-        TimeRange aRange = null;
-        TimeRange bRange = null;
-        TimeRange cRange = null;
-
-        switch (setTime.getType()) {
-            case A -> aRange = range;
-            case B -> bRange = range;
-            case C -> cRange = range;
-        }
-
-        return new FillSlot(
-                worker.getId(),
-                show == null ? "candidate" : show.getId(),
-                setTime.getId(),
-                aRange,
-                bRange,
-                cRange,
-                coverageSlot
-        );
-    }
-
-    private void fillSlotWarnings(
-            FillSlot slot,
-            List<OverlapWarning> warnings
-    ) {
-        for (OverlapWarning warning : warnings) {
-            slot.addWarning(warning);
-        }
+        List<CoverageGap> gaps = coverageCalculator.calculate(shows, assignments);
+        return new SolveResult(assignments, gaps, warnings);
     }
 }
