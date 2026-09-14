@@ -2,7 +2,7 @@ package com.schedule.model;
 
 public record CoverageGap(
         String showId,
-        String setTimeId,
+        String showtimeId,
         int required,
         int assigned
 ) {
@@ -18,7 +18,7 @@ public record CoverageGap(
     public String toString() {
         return "CoverageGap{" +
                 "showId='" + showId + '\'' +
-                ", setTimeId='" + setTimeId + '\'' +
+                ", showtimeId='" + showtimeId + '\'' +
                 ", required=" + required +
                 ", assigned=" + assigned +
                 ", missing=" + missing() +

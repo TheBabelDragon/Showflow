@@ -1,17 +1,10 @@
 package com.schedule.model;
 
-public record OverlapWarning(
-        String workerId,
-        String existingAssignmentId,
-        String newAssignmentId,
-        SetTime.Type existingType,
-        SetTime.Type newType,
-        long overlapMinutes,
-        String message
-) {
-    @Override
-    public String toString() {
-        return "WARNING: " + message +
-                " (" + overlapMinutes + " min overlap)";
+/**
+ * @deprecated Replaced by {@link Diagnostic}.
+ */
+@Deprecated
+public final class OverlapWarning {
+    private OverlapWarning() {
     }
 }

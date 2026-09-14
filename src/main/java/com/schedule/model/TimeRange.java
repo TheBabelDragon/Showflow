@@ -45,6 +45,10 @@ public record TimeRange(LocalTime start, LocalTime end) {
         return Duration.between(overlapStart, overlapEnd).toMinutes();
     }
 
+    public long minutesFrom(LocalTime time) {
+        return Math.abs(Duration.between(end, time).toMinutes());
+    }
+
     @Override
     public String toString() {
         return start + " - " + end;
