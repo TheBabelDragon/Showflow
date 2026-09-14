@@ -102,7 +102,7 @@ function renderWorkers() {
       <div class="card">
         <div class="card-head">
           <strong>${escapeHtml(worker.name || "Unnamed")}</strong>
-          <button data-remove-worker="${index}">Remove</button>
+          <button type="button" data-remove-worker="${index}">Remove</button>
         </div>
         <div class="row">
           <label class="field"><span>ID</span><input data-w="${index}" data-k="id" value="${escapeAttr(worker.id)}"></label>
@@ -112,8 +112,8 @@ function renderWorkers() {
           <label class="field"><span>Preferred zone</span>
             <select data-w="${index}" data-k="preferredZone">
               <option value="" ${!worker.preferredZone ? "selected" : ""}>None</option>
-              <option value="MAIN" ${worker.preferredZone === "MAIN" ? "selected" : ""}>MAIN · rooms 1–4</option>
-              <option value="SIDE" ${worker.preferredZone === "SIDE" ? "selected" : ""}>SIDE · rooms 5–7</option>
+              <option value="MAIN" ${worker.preferredZone === "MAIN" ? "selected" : ""}>MAIN rooms 1-4</option>
+              <option value="SIDE" ${worker.preferredZone === "SIDE" ? "selected" : ""}>SIDE rooms 5-7</option>
             </select>
           </label>
           <label class="field"><span>Lead weight</span>
@@ -122,7 +122,7 @@ function renderWorkers() {
         </div>
         <div class="avail" data-avail="${index}"></div>
         <div class="transport">
-          <button data-add-avail="${index}">Add availability window</button>
+          <button type="button" data-add-avail="${index}">Add availability window</button>
         </div>
       </div>
     `);
@@ -132,7 +132,7 @@ function renderWorkers() {
         <div class="row" style="margin-top:8px">
           <label class="field"><span>Available from</span><input type="time" data-w="${index}" data-a="${wIndex}" data-k="start" value="${escapeAttr(window.start)}"></label>
           <label class="field"><span>Available to</span><input type="time" data-w="${index}" data-a="${wIndex}" data-k="end" value="${escapeAttr(window.end)}"></label>
-          <button data-remove-avail="${index}:${wIndex}">×</button>
+          <button type="button" data-remove-avail="${index}:${wIndex}">x</button>
         </div>
       `));
     });
@@ -156,7 +156,7 @@ function renderShows() {
       <div class="card">
         <div class="card-head">
           <strong>${escapeHtml(show.name || "Untitled show")}</strong>
-          <button data-remove-show="${index}">Remove</button>
+          <button type="button" data-remove-show="${index}">Remove</button>
         </div>
         <div class="row">
           <label class="field"><span>ID</span><input data-s="${index}" data-k="id" value="${escapeAttr(show.id)}"></label>
@@ -166,10 +166,10 @@ function renderShows() {
           <label class="field"><span>Theater</span><input data-s="${index}" data-k="theater" value="${escapeAttr(show.theater || "default")}"></label>
           <label class="field"><span>Guests</span><input type="number" min="0" data-s="${index}" data-k="guests" value="${escapeAttr(show.guests)}"></label>
         </div>
-        <div class="muted" style="margin-top:8px">${required} worker${required === 1 ? "" : "s"} per showtime · A/B/C are derived</div>
+        <div class="muted" style="margin-top:8px">${required} worker${required === 1 ? "" : "s"} per showtime. A/B/C are derived</div>
         <div class="sets" data-sets="${index}"></div>
         <div class="transport">
-          <button data-add-set="${index}">Add showtime</button>
+          <button type="button" data-add-set="${index}">Add showtime</button>
         </div>
       </div>
     `);
@@ -181,13 +181,13 @@ function renderShows() {
           <label class="field"><span>Room</span>
             <select data-s="${index}" data-t="${setIndex}" data-k="room">
               ${[1, 2, 3, 4, 5, 6, 7].map((room) => `
-                <option value="${room}" ${Number(showtime.room) === room ? "selected" : ""}>${room} · ${room <= 4 ? "MAIN" : "SIDE"}</option>
+                <option value="${room}" ${Number(showtime.room) === room ? "selected" : ""}>${room} ${room <= 4 ? "MAIN" : "SIDE"}</option>
               `).join("")}
             </select>
           </label>
           <label class="field"><span>Start</span><input type="time" data-s="${index}" data-t="${setIndex}" data-k="start" value="${escapeAttr(showtime.start)}"></label>
           <label class="field"><span>Duration (min)</span><input type="number" min="1" data-s="${index}" data-t="${setIndex}" data-k="duration" value="${escapeAttr(showtime.duration)}"></label>
-          <button data-remove-set="${index}:${setIndex}">×</button>
+          <button type="button" data-remove-set="${index}:${setIndex}">x</button>
         </div>
       `));
       sets.appendChild(el(derivedChips(showtime)));
@@ -216,12 +216,12 @@ function renderResult() {
       ).size;
       const windows = deriveWindows(showtime.start, showtime.duration);
       const derived = windows
-        ? `A ${rangeLabel(windows.aWindow)} · B ${rangeLabel(windows.bWindow)} · C ${formatHm(windows.cEnd)}`
+        ? `A ${rangeLabel(windows.aWindow)} | B ${rangeLabel(windows.bWindow)} | C ${formatHm(windows.cEnd)}`
         : "";
       const cls = assigned >= required ? "ok" : "bad";
       return `<tr>
         <td>${escapeHtml(show.name)}</td>
-        <td>rm ${escapeHtml(showtime.room)} · ${escapeHtml(showtime.start)} +${escapeHtml(showtime.duration)}m</td>
+        <td>rm ${escapeHtml(showtime.room)} | ${escapeHtml(showtime.start)} +${escapeHtml(showtime.duration)}m</td>
         <td>${escapeHtml(derived)}</td>
         <td class="${cls}">${assigned}/${required}</td>
       </tr>`;
@@ -232,12 +232,12 @@ function renderResult() {
     const worker = workerById[slot.workerId];
     const show = showById[slot.showId];
     const windows = slot.aWindow && slot.bWindow && slot.cEnd != null
-      ? `A ${rangeLabel(slot.aWindow)} · C ${formatHm(slot.cEnd)}`
+      ? `A ${rangeLabel(slot.aWindow)} | C ${formatHm(slot.cEnd)}`
       : rangeLabel(slotRange(slot));
     return `<tr>
       <td>${escapeHtml(worker ? worker.name : slot.workerId)}</td>
       <td>${escapeHtml(show ? show.name : slot.showId)}</td>
-      <td>rm ${escapeHtml(slot.roomNumber)}${slot.lead ? " · LEAD" : ""}</td>
+      <td>rm ${escapeHtml(slot.roomNumber)}${slot.lead ? " LEAD" : ""}</td>
       <td>${escapeHtml(windows)}</td>
       <td>${slot.coverageSlot}</td>
       <td class="${slot.warnings.length ? "warn-text" : "ok"}">${slot.warnings.length ? slot.warnings.length + " warning(s)" : "ok"}</td>
@@ -254,11 +254,11 @@ function renderResult() {
   const warningRows = result.warnings.length
     ? result.warnings.map((warning) => {
       const worker = workerById[warning.workerId];
-      const from = warning.existingShowtimeId || warning.existingAssignmentId || "—";
+      const from = warning.existingShowtimeId || warning.existingAssignmentId || "-";
       const to = warning.newShowtimeId || warning.newAssignmentId || "";
       return `<tr>
         <td>${escapeHtml(worker ? worker.name : warning.workerId)}</td>
-        <td>${escapeHtml(from)} → ${escapeHtml(to)}</td>
+        <td>${escapeHtml(from)} -> ${escapeHtml(to)}</td>
         <td class="warn-text">${escapeHtml(warning.message)}${warning.overlapMinutes ? " (" + warning.overlapMinutes + " min)" : ""}</td>
       </tr>`;
     }).join("")
@@ -304,14 +304,14 @@ function runSolve() {
 }
 
 function escapeHtml(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&")
-    .replace(/</g, "<")
-    .replace(/>/g, ">");
+  return String(value == null ? "" : value)
+    .replace(/&/g, "&" + "amp;")
+    .replace(/</g, "&" + "lt;")
+    .replace(/>/g, "&" + "gt;");
 }
 
 function escapeAttr(value) {
-  return escapeHtml(value).replace(/"/g, """);
+  return escapeHtml(value).replace(/"/g, "&" + "quot;");
 }
 
 function coerceField(key, value) {
@@ -359,6 +359,7 @@ document.addEventListener("input", (event) => {
 document.addEventListener("click", (event) => {
   const target = event.target.closest("button");
   if (!target) return;
+  event.preventDefault();
   if (target.id === "add-worker") {
     state.workers.push(normalizeWorker({ id: uid("w"), name: "Worker", preferredZone: "", leadWeight: 5, availability: [] }));
     saveState();
@@ -394,8 +395,8 @@ document.addEventListener("click", (event) => {
     return;
   }
   if (target.dataset.removeAvail != null) {
-    const [wIndex, aIndex] = target.dataset.removeAvail.split(":").map(Number);
-    state.workers[wIndex].availability.splice(aIndex, 1);
+    const parts = target.dataset.removeAvail.split(":");
+    state.workers[Number(parts[0])].availability.splice(Number(parts[1]), 1);
     saveState();
     renderWorkers();
     return;
@@ -415,8 +416,8 @@ document.addEventListener("click", (event) => {
     return;
   }
   if (target.dataset.removeSet != null) {
-    const [sIndex, tIndex] = target.dataset.removeSet.split(":").map(Number);
-    state.shows[sIndex].showtimes.splice(tIndex, 1);
+    const parts = target.dataset.removeSet.split(":");
+    state.shows[Number(parts[0])].showtimes.splice(Number(parts[1]), 1);
     saveState();
     renderShows();
   }
