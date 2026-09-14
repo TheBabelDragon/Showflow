@@ -30,30 +30,23 @@ public class Main {
 
         AssignmentSolver solver = new AssignmentSolver();
 
-        SolveResult result = solver.solve(
+        SolveResult result = solver.solve(workers, shows);
+
+        DaySheetGenerator daySheetGenerator = new DaySheetGenerator();
+
+        String daySheet = daySheetGenerator.generate(
+                dayLabel,
                 workers,
-                shows
+                shows,
+                result
         );
-
-        DaySheetGenerator daySheetGenerator =
-                new DaySheetGenerator();
-
-        String daySheet =
-                daySheetGenerator.generate(
-                        dayLabel,
-                        workers,
-                        shows,
-                        result
-                );
 
         System.out.println();
         System.out.println(daySheet);
 
-        WorkerReportGenerator workerReportGenerator =
-                new WorkerReportGenerator();
+        WorkerReportGenerator workerReportGenerator = new WorkerReportGenerator();
 
-        Path outputDirectory =
-                Path.of("output");
+        Path outputDirectory = Path.of("output");
 
         try {
             Files.createDirectories(outputDirectory);
@@ -64,44 +57,30 @@ public class Main {
             );
 
             for (Worker worker : workers) {
-                String report =
-                        workerReportGenerator.generate(
-                                worker,
-                                shows,
-                                result
-                        );
-
-                String filename =
-                        sanitizeFilename(worker.getName())
-                                + "-schedule.txt";
-
-                Files.writeString(
-                        outputDirectory.resolve(filename),
-                        report
+                String report = workerReportGenerator.generate(
+                        worker,
+                        shows,
+                        result
                 );
+
+                String filename = sanitizeFilename(worker.getName()) + "-schedule.txt";
+
+                Files.writeString(outputDirectory.resolve(filename), report);
             }
 
             System.out.println(
-                    "Reports written to: "
-                            + outputDirectory.toAbsolutePath()
+                    "Reports written to: " + outputDirectory.toAbsolutePath()
             );
 
         } catch (IOException e) {
-            System.err.println(
-                    "Unable to write reports: "
-                            + e.getMessage()
-            );
+            System.err.println("Unable to write reports: " + e.getMessage());
         }
 
         System.out.println();
-        System.out.println(
-                "SHOWFLOW COMPLETE"
-        );
+        System.out.println("SHOWFLOW COMPLETE");
     }
 
     private static String sanitizeFilename(String value) {
-        return value
-                .trim()
-                .replaceAll("[^a-zA-Z0-9._-]+", "_");
+        return value.trim().replaceAll("[^a-zA-Z0-9._-]+", "_");
     }
 }
