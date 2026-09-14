@@ -12,7 +12,7 @@
   <div class="wrap">
     <header>
       <h1>SHOW<span>FLOW</span></h1>
-      <div class="sub">workers → shows → showtimes (room + start + duration) → derived A/B/C → arbitration</div>
+      <div class="sub">workers - shows - showtimes (room + start + duration) - derived A/B/C - arbitration</div>
     </header>
 
     <section class="panel">
@@ -22,8 +22,8 @@
         <input id="day-label" value="Saturday Floor">
       </label>
       <div class="transport">
-        <button id="load-sample">Load sample day</button>
-        <button id="solve" class="primary">Solve schedule</button>
+        <button type="button" id="load-sample">Load sample day</button>
+        <button type="button" id="solve" class="primary">Solve schedule</button>
       </div>
     </section>
 
@@ -31,7 +31,7 @@
       <h2>Workers + availability</h2>
       <div id="workers"></div>
       <div class="transport">
-        <button id="add-worker">Add worker</button>
+        <button type="button" id="add-worker">Add worker</button>
       </div>
     </section>
 
@@ -39,16 +39,16 @@
       <h2>Shows + guests + showtimes</h2>
       <div id="shows"></div>
       <div class="transport">
-        <button id="add-show">Add show</button>
+        <button type="button" id="add-show">Add show</button>
       </div>
     </section>
 
     <section class="panel" id="result-panel">
-      <h2>Assignments · coverage · warnings · master day sheet</h2>
+      <h2>Assignments - coverage - warnings - master day sheet</h2>
       <div id="result"></div>
     </section>
   </div>
-  <script src="engine.js"></script>
-  <script src="app.js"></script>
+  <script src="engine.js?v=3"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>
