@@ -8,18 +8,30 @@ windows, not independently entered set types.
 
 GitHub Pages target from `.github/workflows/static.yml` (`path: '.'`):
 
-https://thebabeldragon.github.io/Showflow/
+| Page | URL |
+|------|-----|
+| **Scheduler** (production) | https://thebabeldragon.github.io/Showflow/ |
+| **Quantum Optimization** (experimental) | https://thebabeldragon.github.io/Showflow/quantum.html |
 
-That URL serves repository-root `index.html`. On an iPhone it is the live tool:
+Both pages share day state via `localStorage`. The scheduler remains authoritative;
+Quantum Optimization is comparison-only and never mutates the live schedule.
+
+**Scheduler** flow:
 
 workers → availability → shows → guests → showtimes (room + start + duration) → derived A/B/C → assignments → coverage → warnings → master day sheet
 
+**Quantum Optimization** flow:
+
+read-only snapshot → QUBO → local solver → existing validation → compare metrics
+
 Static launcher files (do not replace the Java model):
 
-* `index.html` — Pages document
+* `index.html` — production scheduler
+* `quantum.html` — Quantum Optimization experiment
 * `style.css` — mobile-first surface
 * `engine.js` — browser port of `src/main/java/com/schedule`
 * `app.js` — editor + solver UI
+* `quantum/` — isolated QUBO builder, solver, and experiment UI
 * `.nojekyll` — Pages serves these files as-is
 
 Local preview:
@@ -28,7 +40,8 @@ Local preview:
 python3 -m http.server 8080
 ```
 
-Open `http://localhost:8080/index.html`.
+* Scheduler: `http://localhost:8080/index.html`
+* Quantum Optimization: `http://localhost:8080/quantum.html`
 
 Pages source is GitHub Actions (`static.yml`). If the URL 404s, enable Settings → Pages → Source → GitHub Actions.
 
@@ -133,9 +146,15 @@ cannot legally cover the showtime does not become Lead.
 
 ```
 index.html
+quantum.html
 style.css
 engine.js
 app.js
+quantum/
+├── qubo-builder.js
+├── qubo-solver.js
+├── quantum-optimization.js
+└── quantum-ui.js
 .nojekyll
 .babel/manifest.yml
 .babel/capabilities.yml
@@ -146,29 +165,10 @@ src/main/java/com/schedule/
 ├── SampleRunner.java
 ├── SchedulingConfig.java
 ├── engine/
-│   ├── AssignmentScore.java
-│   ├── AssignmentSolver.java
-│   ├── ConstraintEngine.java
-│   ├── CoverageCalculator.java
-│   ├── DiagnosticEngine.java
-│   ├── LeadArbitrator.java
-│   ├── ScheduleContext.java
-│   ├── SoftScorer.java
-│   └── SolveResult.java
+├── qubo/
 ├── model/
-│   ├── Assignment.java
-│   ├── CoverageGap.java
-│   ├── Diagnostic.java
-│   ├── Show.java
-│   ├── Showtime.java
-│   ├── TimeRange.java
-│   ├── Worker.java
-│   └── Zone.java
 ├── report/
-│   ├── DaySheetGenerator.java
-│   └── WorkerReportGenerator.java
 └── ui/
-    └── AdminConsole.java
 ```
 
 ## Build
@@ -189,28 +189,38 @@ Non-interactive sample:
 mvn -q -DincludeScope=compile compile exec:java -Dexec.mainClass=com.schedule.SampleRunner
 ```
 
-Or after `javac`:
+## Quantum Optimization
 
-```bash
-java -cp target/classes com.schedule.SampleRunner
-```
+User-facing name: **Quantum Optimization** (experimental).
 
-The console prompts for:
+Open: https://thebabeldragon.github.io/Showflow/quantum.html
 
-1. Day label
-2. Workers, zone preference, lead weight, availability
-3. Shows, theater, guest counts
-4. Showtimes: room, start, duration
-
-Generated reports are written to:
+Internal modules use `qubo` terminology because QUBO is the mathematical
+representation. The browser does **not** run on quantum hardware.
 
 ```
-output/
-├── master-day-sheet.txt
-└── <worker>-schedule.txt
+Live Showflow state (read-only snapshot)
+        ↓
+Binary assignment variables  x(worker, showtime) ∈ {0,1}
+        ↓
+Hard-constraint penalties + soft optimization weights
+        ↓
+QUBO
+        ↓
+Local solver (classical / quantum-inspired)
+        ↓
+Candidate schedule
+        ↓
+Existing Showflow validation
+        ↓
+Compare metrics (never mutates the live schedule)
 ```
 
-The `output/` directory is intentionally excluded from version control.
+Terminology:
+
+* **QUBO** — mathematical optimization representation
+* **Quantum Optimization** — experimental feature name in the UI
+* **Quantum hardware** — optional future solver backend; not required for Pages
 
 ## Design Principle
 
