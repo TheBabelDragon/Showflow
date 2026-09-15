@@ -19,11 +19,11 @@
     </header>
 
     <section class="panel">
-      <h2>Experimental Quantum Optimization</h2>
+      <h2>Quantum Optimization</h2>
       <p class="muted" style="margin:0 0 12px">
-        Snapshot the live scheduling state → binary QUBO variables → constraint
-        penalties + soft objective → local classical / quantum-inspired solver →
-        existing Showflow validation → side-by-side comparison.
+        Snapshot the live scheduling state → modular optimization parameters →
+        binary QUBO variables → hard penalties + soft objective → local classical /
+        quantum-inspired solver → existing Showflow validation → side-by-side comparison.
         Proposal only — never mutates the authoritative schedule.
         No quantum hardware required.
       </p>
@@ -47,14 +47,15 @@
     <input type="hidden" id="day-label" value="Saturday Floor">
   </div>
 
-  <script src="engine.js?v=3"></script>
-  <script src="app.js?v=3"></script>
-  <script src="quantum/qubo-builder.js?v=3"></script>
-  <script src="quantum/qubo-inspect.js?v=1"></script>
+  <script src="engine.js?v=4"></script>
+  <script src="app.js?v=4"></script>
+  <script src="quantum/optimization-params.js?v=1"></script>
+  <script src="quantum/qubo-builder.js?v=4"></script>
+  <script src="quantum/qubo-inspect.js?v=2"></script>
   <script src="quantum/qubo-solver.js?v=2"></script>
-  <script src="quantum/quantum-optimization.js?v=3"></script>
-  <script src="quantum/quantum-ui.js?v=3"></script>
-  <script src="quantum/quantum-enhancements.js?v=1"></script>
+  <script src="quantum/quantum-optimization.js?v=4"></script>
+  <script src="quantum/quantum-ui.js?v=4"></script>
+  <script src="quantum/quantum-enhancements.js?v=2"></script>
   <script>
     document.documentElement.dataset.quantumStandalone = "1";
     if (window.ShowflowQuantumUI) {
