@@ -21,9 +21,10 @@
     <section class="panel">
       <h2>Experimental Quantum Optimization</h2>
       <p class="muted" style="margin:0 0 12px">
-        Builds a QUBO from the current scheduling state, solves it locally
-        (classical / quantum-inspired), validates with the existing rules, and
-        compares against the normal scheduler. Does not replace the live schedule.
+        Snapshot the live scheduling state → binary QUBO variables → constraint
+        penalties + soft objective → local classical / quantum-inspired solver →
+        existing Showflow validation → side-by-side comparison.
+        Proposal only — never mutates the authoritative schedule.
         No quantum hardware required.
       </p>
       <div class="transport">
@@ -50,10 +51,10 @@
 
   <script src="engine.js?v=3"></script>
   <script src="app.js?v=3"></script>
-  <script src="quantum/qubo-builder.js?v=1"></script>
-  <script src="quantum/qubo-solver.js?v=1"></script>
-  <script src="quantum/quantum-optimization.js?v=1"></script>
-  <script src="quantum/quantum-ui.js?v=1"></script>
+  <script src="quantum/qubo-builder.js?v=2"></script>
+  <script src="quantum/qubo-solver.js?v=2"></script>
+  <script src="quantum/quantum-optimization.js?v=2"></script>
+  <script src="quantum/quantum-ui.js?v=2"></script>
   <script>
     // Standalone mode: always show the experiment panel, host in #quantum-host
     document.documentElement.dataset.quantumStandalone = "1";
