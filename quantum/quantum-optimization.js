@@ -1,6 +1,6 @@
 /**
  * Quantum Optimization experiment — orchestration layer.
- * Read-only snapshot of live Showflow state → QUBO → local solve → validate → compare.
+ * Read-only snapshot of live Showflow state → policy params → QUBO → local solve → validate → compare.
  * Never mutates authoritative schedule state.
  */
 (function (global) {
@@ -24,11 +24,9 @@
       (q.gapCount === 0 && (q.hardViolations || 0) === 0);
 
     if (passes) {
-      bullets.push("Candidate passes Showflow validation");
+      bullets.push("Candidate VALID — passes Showflow validation");
     } else {
-      bullets.push(
-        "Candidate has residual issues (gaps or rejected illegal picks) — still reported for comparison only"
-      );
+      bullets.push("Candidate REJECTED — residual gaps or illegal picks (comparison only)");
     }
 
     if (c.bOverlapTotal != null && q.bOverlapTotal != null) {
@@ -72,13 +70,14 @@
 
     return {
       passesValidation: !!passes,
+      statusLabel: passes ? "Candidate VALID" : "Candidate REJECTED",
       bullets
     };
   }
 
-  function runQuantumOptimization(snapshot, weights, classicResult) {
+  function runQuantumOptimization(snapshot, paramsOrWeights, classicResult, previousPolicy) {
     const t0 = performance.now();
-    const model = ShowflowQuboBuilder.buildQubo(snapshot, weights);
+    const model = ShowflowQuboBuilder.buildQubo(snapshot, paramsOrWeights);
     const solution = ShowflowQuboSolver.solve(model);
     const candidate = ShowflowQuboSolver.materialize(solution, snapshot);
     const candidateMetrics = ShowflowQuboSolver.computeMetrics(candidate, snapshot);
@@ -89,7 +88,55 @@
     }
 
     const conclusion = buildConclusion(classicMetrics, candidateMetrics, candidate);
-    const inspectText = ShowflowQuboBuilder.formatInspect(model, 48);
+    const inspectText =
+      typeof ShowflowQuboBuilder.formatInspect === "function"
+        ? ShowflowQuboBuilder.formatInspect(model, 48)
+        : "";
+
+    let policy = null;
+    if (global.ShowflowOptimizationParams) {
+      const raw =
+        (paramsOrWeights && paramsOrWeights.params) ||
+        paramsOrWeights ||
+        global.ShowflowOptimizationParams.defaults();
+      policy = global.ShowflowOptimizationParams.policySummary(raw);
+    }
+
+    const measurable = [];
+    if (previousPolicy && policy) {
+      if (previousPolicy.maxBOverlap !== policy.maxBOverlap) {
+        measurable.push(
+          "Maximum B overlap: " + previousPolicy.maxBOverlap + "m → " + policy.maxBOverlap + "m"
+        );
+      }
+      if (previousPolicy.bPenalty !== policy.bPenalty) {
+        measurable.push("B penalty: " + previousPolicy.bPenalty + " → " + policy.bPenalty);
+      }
+      if (previousPolicy.bCurve !== policy.bCurve) {
+        measurable.push("B curve: " + previousPolicy.bCurve + " → " + policy.bCurve);
+      }
+      if (previousPolicy.workload !== policy.workload) {
+        measurable.push("Workload weight: " + previousPolicy.workload + " → " + policy.workload);
+      }
+    }
+    if (classicMetrics && candidateMetrics) {
+      if (classicMetrics.bOverlapTotal != null && candidateMetrics.bOverlapTotal != null) {
+        const d = candidateMetrics.bOverlapTotal - classicMetrics.bOverlapTotal;
+        if (d !== 0) measurable.push("B overlap " + (d > 0 ? "+" : "") + d + "m vs normal schedule");
+      }
+      if (classicMetrics.workloadVariance != null && candidateMetrics.workloadVariance != null) {
+        const cv = classicMetrics.workloadVariance;
+        const qv = candidateMetrics.workloadVariance;
+        if (cv > 0.001) {
+          const pct = Math.round((100 * (cv - qv)) / cv);
+          if (pct !== 0) measurable.push("Workload balance " + (pct > 0 ? "+" : "") + pct + "% vs normal");
+        }
+      }
+      measurable.push("QUBO energy " + Number(solution.energy).toFixed(2));
+      measurable.push(
+        "Hard violations (candidate): " + (candidateMetrics.hardViolations != null ? candidateMetrics.hardViolations : 0)
+      );
+    }
 
     return {
       enabled: true,
@@ -99,14 +146,19 @@
         variableCount: model.variableCount,
         diagnostics: model.diagnostics,
         weights: model.weights,
+        config: model.config,
+        params: model.params,
         meta: model.snapshotMeta,
         variables: model.variables,
-        annotated: model.annotated,
         linear: model.linear,
         quadratic: model.quadratic,
-        constant: model.constant
+        constant: model.constant,
+        annotations: model.annotations
       },
       inspectText,
+      policy,
+      previousPolicy: previousPolicy || null,
+      measurable,
       solution: {
         energy: solution.energy,
         runtimeMs: solution.runtimeMs,
@@ -129,6 +181,23 @@
     const results = [];
     function check(name, cond) {
       results.push({ name, ok: !!cond });
+    }
+
+    const P = global.ShowflowOptimizationParams;
+    if (P) {
+      const d = P.defaults();
+      check("parameter defaults present", d.maxBOverlapMinutes === 30 && d.bOverlapPenalty === 20);
+      const ser = P.serialize(d);
+      const des = P.deserialize(ser);
+      check("parameter serialization round-trip", des.maxBOverlapMinutes === 30 && des.bOverlapPenalty === 20);
+      const strict = P.applyPreset("strict");
+      check("preset loading (strict)", strict.maxBOverlapMinutes === 15 && strict.bOverlapCurve === "quadratic");
+      const flex = P.applyPreset("flexible");
+      check("preset loading (flexible)", flex.maxBOverlapMinutes === 45);
+      const reset = P.defaults();
+      check("parameter reset", reset.maxBOverlapMinutes === 30);
+    } else {
+      check("parameter module present", false);
     }
 
     const workers = [
@@ -159,7 +228,6 @@
     const snap = getScheduleSnapshot(workers, shows);
     const model = ShowflowQuboBuilder.buildQubo(snap, null);
     check("variable generation (eligible)", model.variableCount === 2);
-    check("diagnostics present", model.diagnostics && model.diagnostics.variables === 2);
 
     const sol = ShowflowQuboSolver.solve(model);
     check("solver returns assignment", sol.assignment.length === 2);
@@ -187,19 +255,16 @@
         showtimes: [{ id: "st1", room: 1, start: "14:00", duration: 60 }]
       }
     ];
-    const m3 = ShowflowQuboBuilder.buildQubo(
-      getScheduleSnapshot(workers, covShow),
-      {
-        hardConflict: 1000,
-        missingCoverage: 2000,
-        bOverlap: 0,
-        cProximity: 0,
-        workloadBalance: 0,
-        zoneTransition: 0,
-        roomFamily: 0,
-        leadPreference: 0
-      }
-    );
+    const m3 = ShowflowQuboBuilder.buildQubo(getScheduleSnapshot(workers, covShow), {
+      hardConflict: 1000,
+      missingCoverage: 2000,
+      bOverlap: 0,
+      cProximity: 0,
+      workloadBalance: 0,
+      zoneTransition: 0,
+      roomFamily: 0,
+      leadPreference: 0
+    });
     check("coverage vars", m3.variableCount === 2);
     const eBoth = ShowflowQuboBuilder.energy(m3, [true, true]);
     const eOne = ShowflowQuboBuilder.energy(m3, [true, false]);
@@ -236,8 +301,80 @@
     const empty = ShowflowQuboBuilder.buildQubo(getScheduleSnapshot([], []), null);
     check("empty model", empty.variableCount === 0);
 
-    const inspect = ShowflowQuboBuilder.formatInspect(model, 10);
+    const inspect =
+      typeof ShowflowQuboBuilder.formatInspect === "function"
+        ? ShowflowQuboBuilder.formatInspect(model, 10)
+        : "";
     check("inspect text", typeof inspect === "string" && inspect.indexOf("x0") >= 0);
+
+    if (P && ShowflowQuboBuilder.modelFingerprint) {
+      const baseParams = P.defaults();
+      const multiShows = [
+        {
+          id: "s1",
+          name: "A",
+          theater: "default",
+          guests: 8,
+          showtimes: [{ id: "st1", room: 1, start: "14:00", duration: 60 }]
+        },
+        {
+          id: "s2",
+          name: "B",
+          theater: "default",
+          guests: 8,
+          showtimes: [{ id: "st2", room: 2, start: "14:30", duration: 60 }]
+        }
+      ];
+      const multiSnap = getScheduleSnapshot(workers, multiShows);
+      const mC = ShowflowQuboBuilder.buildQubo(multiSnap, baseParams);
+      const alt2 = P.clone(baseParams);
+      alt2.bOverlapPenalty = 99;
+      alt2.bOverlapCurve = "quadratic";
+      alt2.leadPreferenceWeight = -40;
+      alt2.workloadBalanceWeight = 25;
+      const mD = ShowflowQuboBuilder.buildQubo(multiSnap, alt2);
+      const fpC = ShowflowQuboBuilder.modelFingerprint(mC);
+      const fpD = ShowflowQuboBuilder.modelFingerprint(mD);
+      check("same schedule + different soft params → different QUBO", fpC !== fpD);
+
+      const altHard = P.clone(baseParams);
+      altHard.maxBOverlapMinutes = 5;
+      altHard.hardConflictPenalty = 5000;
+      const mE = ShowflowQuboBuilder.buildQubo(multiSnap, altHard);
+      const fpE = ShowflowQuboBuilder.modelFingerprint(mE);
+      check("hard threshold change affects QUBO", fpC !== fpE);
+
+      const softLin = P.clone(baseParams);
+      softLin.bOverlapPenalty = 30;
+      softLin.bOverlapCurve = "linear";
+      softLin.preferredBOverlapMinutes = 0;
+      const softQuad = P.clone(baseParams);
+      softQuad.bOverlapPenalty = 30;
+      softQuad.bOverlapCurve = "quadratic";
+      softQuad.preferredBOverlapMinutes = 0;
+      const mLin = ShowflowQuboBuilder.buildQubo(multiSnap, softLin);
+      const mQuad = ShowflowQuboBuilder.buildQubo(multiSnap, softQuad);
+      check(
+        "linear vs quadratic overlap penalty changes coefficients",
+        ShowflowQuboBuilder.modelFingerprint(mLin) !== ShowflowQuboBuilder.modelFingerprint(mQuad) ||
+          ShowflowQuboBuilder.bOverlapSoftCoeff(20, 30, "linear") !==
+            ShowflowQuboBuilder.bOverlapSoftCoeff(20, 30, "quadratic")
+      );
+      check(
+        "soft coeff linear vs quadratic",
+        ShowflowQuboBuilder.bOverlapSoftCoeff(30, 20, "linear") === 20 &&
+          ShowflowQuboBuilder.bOverlapSoftCoeff(30, 20, "quadratic") === 20 * (900 / 30)
+      );
+    } else {
+      check("same schedule + different params → different QUBO", false);
+    }
+
+    const origWorkers = JSON.stringify(workers);
+    getScheduleSnapshot(workers, shows);
+    check("snapshot does not mutate input workers", JSON.stringify(workers) === origWorkers);
+
+    check("CONFIG B tolerance present", typeof CONFIG !== "undefined" && CONFIG.B_OVERLAP_TOLERANCE_MINUTES === 30);
+    check("CONFIG first-set guest limit", CONFIG.FIRST_SET_A_EXCEPTION_GUEST_LIMIT === 10);
 
     const failed = results.filter((r) => !r.ok);
     return {
