@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0c1210">
+  <title>Showflow — Quantum Optimization</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>SHOW<span>FLOW</span></h1>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="index.html">Scheduler</a>
+        <a href="quantum.html" class="nav-active">Quantum Optimization</a>
+      </nav>
+    </header>
+
+    <section class="panel">
+      <h2>Experimental Quantum Optimization</h2>
+      <p class="muted" style="margin:0 0 12px">
+        Builds a QUBO from the current scheduling state, solves it locally
+        (classical / quantum-inspired), validates with the existing rules, and
+        compares against the normal scheduler. Does not replace the live schedule.
+        No quantum hardware required.
+      </p>
+      <div class="transport">
+        <button type="button" id="load-sample">Load sample day</button>
+        <button type="button" id="solve" class="primary">Solve + compare</button>
+        <a class="button-link" href="index.html">Back to scheduler</a>
+      </div>
+    </section>
+
+    <section class="panel" id="quantum-host">
+      <!-- quantum-ui mounts here when data-quantum-standalone is set -->
+    </section>
+
+    <section class="panel" id="result-panel">
+      <h2>Normal schedule result (reference)</h2>
+      <div id="result"></div>
+    </section>
+
+    <!-- Hidden editor roots so app.js state/loadSample/solve still work -->
+    <div id="workers" hidden></div>
+    <div id="shows" hidden></div>
+    <input type="hidden" id="day-label" value="Saturday Floor">
+  </div>
+
+  <script src="engine.js?v=3"></script>
+  <script src="app.js?v=3"></script>
+  <script src="quantum/qubo-builder.js?v=1"></script>
+  <script src="quantum/qubo-solver.js?v=1"></script>
+  <script src="quantum/quantum-optimization.js?v=1"></script>
+  <script src="quantum/quantum-ui.js?v=1"></script>
+  <script>
+    // Standalone mode: always show the experiment panel, host in #quantum-host
+    document.documentElement.dataset.quantumStandalone = "1";
+    if (window.ShowflowQuantumUI) {
+      ShowflowQuantumUI.getState().enabled = true;
+      ShowflowQuantumUI.init();
+    }
+    // Wire Solve + compare on this page
+    document.getElementById("solve")?.addEventListener("click", () => {
+      if (typeof state === "undefined") return;
+      state.result = solve(state.workers, state.shows);
+      if (typeof renderResult === "function") renderResult();
+      if (window.ShowflowQuantumUI) ShowflowQuantumUI.runCompare();
+    });
+  </script>
+</body>
+</html>
