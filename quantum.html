@@ -35,7 +35,6 @@
     </section>
 
     <section class="panel" id="quantum-host">
-      <!-- quantum-ui mounts here when data-quantum-standalone is set -->
     </section>
 
     <section class="panel" id="result-panel">
@@ -43,7 +42,6 @@
       <div id="result"></div>
     </section>
 
-    <!-- Hidden editor roots so app.js state/loadSample/solve still work -->
     <div id="workers" hidden></div>
     <div id="shows" hidden></div>
     <input type="hidden" id="day-label" value="Saturday Floor">
@@ -52,6 +50,7 @@
   <script src="engine.js?v=3"></script>
   <script src="app.js?v=3"></script>
   <script src="quantum/qubo-builder.js?v=3"></script>
+  <script src="quantum/qubo-inspect.js?v=1"></script>
   <script src="quantum/qubo-solver.js?v=2"></script>
   <script src="quantum/quantum-optimization.js?v=3"></script>
   <script src="quantum/quantum-ui.js?v=3"></script>
