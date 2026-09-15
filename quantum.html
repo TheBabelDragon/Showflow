@@ -51,18 +51,17 @@
 
   <script src="engine.js?v=3"></script>
   <script src="app.js?v=3"></script>
-  <script src="quantum/qubo-builder.js?v=2"></script>
+  <script src="quantum/qubo-builder.js?v=3"></script>
   <script src="quantum/qubo-solver.js?v=2"></script>
-  <script src="quantum/quantum-optimization.js?v=2"></script>
-  <script src="quantum/quantum-ui.js?v=2"></script>
+  <script src="quantum/quantum-optimization.js?v=3"></script>
+  <script src="quantum/quantum-ui.js?v=3"></script>
+  <script src="quantum/quantum-enhancements.js?v=1"></script>
   <script>
-    // Standalone mode: always show the experiment panel, host in #quantum-host
     document.documentElement.dataset.quantumStandalone = "1";
     if (window.ShowflowQuantumUI) {
       ShowflowQuantumUI.getState().enabled = true;
       ShowflowQuantumUI.init();
     }
-    // Wire Solve + compare on this page
     document.getElementById("solve")?.addEventListener("click", () => {
       if (typeof state === "undefined") return;
       state.result = solve(state.workers, state.shows);
