@@ -22,7 +22,7 @@ workers → availability → shows → guests → showtimes (room + start + dura
 
 **Quantum Optimization** flow:
 
-read-only snapshot → QUBO → local solver → existing validation → compare metrics
+read-only snapshot → modular parameters → QUBO → local solver → existing validation → compare metrics
 
 Static launcher files (do not replace the Java model):
 
@@ -151,10 +151,14 @@ style.css
 engine.js
 app.js
 quantum/
+├── optimization-params.js
+├── op-params.css
 ├── qubo-builder.js
+├── qubo-inspect.js
 ├── qubo-solver.js
 ├── quantum-optimization.js
-└── quantum-ui.js
+├── quantum-ui.js
+└── quantum-enhancements.js
 .nojekyll
 .babel/manifest.yml
 .babel/capabilities.yml
@@ -198,29 +202,113 @@ Open: https://thebabeldragon.github.io/Showflow/quantum.html
 Internal modules use `qubo` terminology because QUBO is the mathematical
 representation. The browser does **not** run on quantum hardware.
 
+### What the optimization layer does
+
 ```
-Live Showflow state (read-only snapshot)
-        ↓
-Binary assignment variables  x(worker, showtime) ∈ {0,1}
-        ↓
-Hard-constraint penalties + soft optimization weights
-        ↓
-QUBO
-        ↓
-Local solver (classical / quantum-inspired)
-        ↓
-Candidate schedule
-        ↓
-Existing Showflow validation
-        ↓
-Compare metrics (never mutates the live schedule)
+USER PARAMETERS
+      ↓
+POLICY MODEL  (quantum/optimization-params.js)
+      ↓
+CONSTRAINT / OBJECTIVE GENERATION
+      ↓
+QUBO  (quantum/qubo-builder.js)
+      ↓
+SOLVER  (local classical / quantum-inspired)
+      ↓
+CANDIDATE
+      ↓
+SHOWFLOW VALIDATOR  (existing engine.js / Java rules)
+      ↓
+MEASURED COMPARISON
 ```
 
-Terminology:
+The existing deterministic Showflow scheduler remains authoritative. Quantum
+Optimization is an isolated read-only proposal layer: it snapshots state,
+builds a QUBO from an explicit parameter model, solves, materializes a
+candidate, and runs that candidate through the same validation path. It never
+mutates the live schedule.
+
+### Modular parameter model
+
+One authoritative schema lives in `quantum/optimization-params.js`.
+
+**Hard constraint parameters** (feasibility):
+
+| Parameter | Default | Role |
+|-----------|---------|------|
+| Maximum A overlap | 0 min | A-window overlap above this is a hard conflict (first-set exception still applies) |
+| Maximum B overlap | 30 min | B-window overlap above this is a hard conflict (matches production tolerance) |
+| Hard conflict penalty | 1000 | Quadratic strength for illegal pairs |
+| Missing coverage penalty | 2000 | Exact staffing count per showtime |
+| First-set A exception guest limit | 10 | Named opening-cohort exception |
+
+**Soft preference parameters** (objective):
+
+| Parameter | Default | Role |
+|-----------|---------|------|
+| Preferred B overlap | 0 min | Soft penalty starts above this preferred threshold |
+| B overlap penalty | 20 | Soft weight for excess B minutes |
+| B overlap penalty curve | linear | `linear` or `quadratic` scaling of excess minutes |
+| C proximity window | 15 min | Distance threshold for C-end soft terms |
+| C proximity penalty | 8 | Soft weight for tight C ends |
+| Workload balance weight | 4 | Discourage concentrating work on one worker |
+| Zone transition weight | 5 | MAIN ↔ SIDE moves |
+| Room-family pairing weight | 3 | Preferred / same-family room pairs + preferred zone |
+| Theater-lead preference weight | −10 | Linear preference scaled by lead weight |
+
+Overlap is the reference modular policy: preferred threshold, maximum permitted
+threshold, penalty strength, and penalty curve all feed the QUBO coefficients.
+Changing them changes the mathematical model (verified by self-test fingerprint).
+
+Presets (`Strict`, `Balanced`, `Flexible`) only populate the same parameter
+object. After a preset, any individual control remains editable. **Reset to
+defaults** restores the schema defaults.
+
+### Inspect QUBO
+
+After a solve, **Inspect QUBO** shows variables, linear/quadratic term counts,
+hard-like vs soft terms, policy summary, and annotated representative
+coefficients (e.g. `Q[x0,x1] = +1000  hard conflict`).
+
+### Comparison
+
+Side-by-side **Normal Scheduler** vs **Quantum Optimization** metrics
+(coverage, hard/gaps, B overlap, workload variance, zone transitions, QUBO
+energy). The existing validator decides:
+
+* **Candidate VALID**
+* **Candidate REJECTED**
+
+Measured policy deltas (e.g. maximum B overlap change, energy, workload %)
+are shown when parameters change between solves.
+
+### Files
+
+| Path | Role |
+|------|------|
+| `quantum/optimization-params.js` | Single parameter schema, defaults, presets, serialization |
+| `quantum/qubo-builder.js` | Policy → QUBO (hard thresholds + soft coefficients) |
+| `quantum/qubo-inspect.js` | Diagnostics + human-readable inspect text |
+| `quantum/qubo-solver.js` | Local exhaustive / simulated annealing |
+| `quantum/quantum-optimization.js` | Orchestration, metrics, self-tests |
+| `quantum/quantum-ui.js` | Optimization Parameters UI, comparison, inspect |
+| `quantum/op-params.css` | Parameter control styles |
+
+### Terminology
 
 * **QUBO** — mathematical optimization representation
 * **Quantum Optimization** — experimental feature name in the UI
-* **Quantum hardware** — optional future solver backend; not required for Pages
+* **Quantum hardware** — optional future solver backend; the QUBO formulation
+  is designed so a real backend could implement the same solver interface
+  without rewriting the parameter model
+
+### Why the existing scheduler remains authoritative
+
+Hard-rule semantics (A/B/C windows, first-set A exception, B tolerance of 30
+minutes in production, coverage math, lead arbitration) are defined by the
+Java engine and its browser port `engine.js`. Quantum Optimization may explore
+alternate *policies* for proposal generation, but acceptance is always decided
+by the existing validator. The live schedule is never silently rewritten.
 
 ## Design Principle
 
