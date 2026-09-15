@@ -1,0 +1,171 @@
+/* —— Modular Optimization Parameters —— */
+.op-params {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.op-group {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  padding: 0 10px 6px;
+}
+.op-group > summary {
+  cursor: pointer;
+  list-style: none;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 10px 2px;
+  font-weight: 600;
+}
+.op-group > summary::-webkit-details-marker { display: none; }
+.op-group > summary::before {
+  content: "▸ ";
+  color: var(--phosphor-dim);
+}
+.op-group[open] > summary::before {
+  content: "▾ ";
+  color: var(--phosphor);
+}
+.op-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 8px;
+}
+.op-row {
+  padding: 8px 4px;
+  border-top: 1px solid var(--line);
+}
+.op-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.op-label-row label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.op-kind {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.op-hard {
+  background: rgba(255, 107, 107, 0.15);
+  color: var(--danger);
+  border: 1px solid rgba(255, 107, 107, 0.35);
+}
+.op-soft {
+  background: rgba(125, 255, 178, 0.1);
+  color: var(--phosphor);
+  border: 1px solid rgba(125, 255, 178, 0.3);
+}
+.op-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.op-slider {
+  flex: 1 1 140px;
+  min-width: 120px;
+  accent-color: var(--phosphor);
+}
+.op-num {
+  width: 72px;
+  font-family: var(--mono);
+  font-size: 13px;
+  background: var(--bg);
+  border: 1px solid var(--line-bright);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+.op-select {
+  font-family: var(--mono);
+  font-size: 13px;
+  background: var(--bg);
+  border: 1px solid var(--line-bright);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 6px 10px;
+  min-width: 120px;
+}
+.op-desc, .op-effect {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.op-effect {
+  color: var(--phosphor-dim);
+}
+.op-presets {
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.op-presets button {
+  font-size: 12px;
+}
+.quantum-status {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  text-align: center;
+}
+.quantum-status.ok {
+  background: rgba(125, 255, 178, 0.12);
+  border: 1px solid rgba(125, 255, 178, 0.4);
+  color: var(--phosphor);
+}
+.quantum-status.bad {
+  background: rgba(255, 107, 107, 0.12);
+  border: 1px solid rgba(255, 107, 107, 0.4);
+  color: var(--danger);
+}
+.op-measurable {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+.op-measurable h4 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.op-measurable ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+.op-measurable li {
+  margin: 3px 0;
+}
+@media (max-width: 480px) {
+  .op-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .op-num {
+    width: 100%;
+  }
+  .quantum-compare {
+    flex-direction: column;
+  }
+}
