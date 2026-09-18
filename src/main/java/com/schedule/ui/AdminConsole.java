@@ -11,6 +11,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
+/**
+ * Interactive intake. All workers/shows created here share one storeId
+ * so Main remains a single-store session (store isolation boundary).
+ */
 public class AdminConsole {
 
     private final Scanner scanner;
@@ -19,7 +23,16 @@ public class AdminConsole {
         this.scanner = new Scanner(System.in);
     }
 
+    public String readStoreId() {
+        String id = readOptional("Store ID (blank = STORE-DEFAULT): ");
+        return id.isBlank() ? "STORE-DEFAULT" : id;
+    }
+
     public List<Worker> readWorkers() {
+        return readWorkers(readStoreId());
+    }
+
+    public List<Worker> readWorkers(String storeId) {
         List<Worker> workers = new ArrayList<>();
 
         int count = readInt("Number of workers: ", 0);
@@ -30,7 +43,7 @@ public class AdminConsole {
             String id = readRequired("Worker ID: ");
             String name = readRequired("Worker name: ");
 
-            Worker worker = new Worker(id, name);
+            Worker worker = new Worker(storeId, id, name);
 
             String zone = readOptional("Preferred zone (MAIN/SIDE/blank): ");
             if ("MAIN".equalsIgnoreCase(zone)) {
@@ -63,6 +76,10 @@ public class AdminConsole {
     }
 
     public List<Show> readShows() {
+        return readShows(readStoreId());
+    }
+
+    public List<Show> readShows(String storeId) {
         List<Show> shows = new ArrayList<>();
 
         int count = readInt("Number of shows: ", 0);
@@ -76,8 +93,8 @@ public class AdminConsole {
             int guests = readInt("Guest count: ", 0);
 
             Show show = theater.isBlank()
-                    ? new Show(id, name, guests)
-                    : new Show(id, name, guests, theater);
+                    ? new Show(storeId, id, name, guests)
+                    : new Show(storeId, id, name, guests, theater);
 
             int showtimeCount = readInt("Number of showtimes: ", 0);
 
@@ -89,7 +106,7 @@ public class AdminConsole {
                 LocalTime start = readTime("  Start (HH:mm): ");
                 int duration = readInt("  Duration minutes: ", 1);
 
-                show.addShowtime(new Showtime(showtimeId, room, start, duration));
+                show.addShowtime(new Showtime(storeId, showtimeId, room, start, duration));
             }
 
             shows.add(show);

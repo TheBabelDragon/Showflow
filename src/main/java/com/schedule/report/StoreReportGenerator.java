@@ -17,7 +17,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
- * Builds HTML/text day sheet, JSON API body, and store-level iCalendar
+ * Builds day-sheet text, JSON API body, and store-level iCalendar
  * from a single ScheduleRevision — no independent recomputation.
  */
 public final class StoreReportGenerator {
@@ -37,16 +37,18 @@ public final class StoreReportGenerator {
         SolveResult result = revision.getResult();
 
         String dayLabel = store.getName() + " — " + store.getId()
+                + "  " + schedule.getScheduleDate()
                 + "  rev " + revision.getRevisionId();
         String daySheet = daySheetGenerator.generate(dayLabel, workers, shows, result);
-        String json = buildJson(store, revision, workers, shows, result);
-        String ical = buildIcal(store, revision, workers, shows, result);
+        String json = buildJson(store, schedule, revision, workers, shows, result);
+        String ical = buildIcal(store, schedule, revision, workers, shows, result);
 
         return new StoreReport(store, revision, daySheet, json, ical);
     }
 
     private String buildJson(
             Store store,
+            StoreSchedule schedule,
             ScheduleRevision revision,
             List<Worker> workers,
             List<Show> shows,
@@ -59,6 +61,7 @@ public final class StoreReportGenerator {
         sb.append("    \"name\": \"").append(esc(store.getName())).append("\",\n");
         sb.append("    \"timezone\": \"").append(esc(store.getTimezone())).append("\"\n");
         sb.append("  },\n");
+        sb.append("  \"scheduleDate\": \"").append(schedule.getScheduleDate()).append("\",\n");
         sb.append("  \"generatedAt\": \"").append(revision.getGeneratedAt()).append("\",\n");
         sb.append("  \"revisionId\": \"").append(esc(revision.getRevisionId())).append("\",\n");
         sb.append("  \"scheduleHash\": \"").append(esc(revision.getScheduleHash())).append("\",\n");
@@ -78,6 +81,7 @@ public final class StoreReportGenerator {
 
     private String buildIcal(
             Store store,
+            StoreSchedule schedule,
             ScheduleRevision revision,
             List<Worker> workers,
             List<Show> shows,
@@ -97,6 +101,7 @@ public final class StoreReportGenerator {
         sb.append("PRODID:-//Showflow//").append(store.getId()).append("//EN\r\n");
         sb.append("X-WR-CALNAME:Showflow ").append(store.getName()).append("\r\n");
         sb.append("X-SHOWFLOW-REVISION:").append(revision.getRevisionId()).append("\r\n");
+        sb.append("X-SHOWFLOW-DATE:").append(schedule.getScheduleDate()).append("\r\n");
 
         for (Assignment a : result.getAssignments()) {
             Worker worker = workerById.get(a.getWorkerId());
@@ -106,12 +111,12 @@ public final class StoreReportGenerator {
             String role = a.isLead() ? "Lead" : "Coverage";
 
             ZonedDateTime start = ZonedDateTime.of(
-                    java.time.LocalDate.now(zone),
+                    schedule.getScheduleDate(),
                     a.getAWindow().end(),
                     zone
             );
             ZonedDateTime end = ZonedDateTime.of(
-                    java.time.LocalDate.now(zone),
+                    schedule.getScheduleDate(),
                     a.getCEnd(),
                     zone
             );

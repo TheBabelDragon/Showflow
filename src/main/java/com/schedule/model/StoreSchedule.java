@@ -1,18 +1,21 @@
 package com.schedule.model;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
 
 /**
- * One store's workers + shows ready for the existing AssignmentSolver.
+ * One store's workers + shows for one calendar date, ready for AssignmentSolver.
  * Never mixes data from another store.
+ *
+ * <p>Solver continues to use {@link java.time.LocalTime} internally. The store
+ * timezone + this date make external calendars and APIs unambiguous.
  */
 public final class StoreSchedule {
 
     private final Store store;
+    private final LocalDate scheduleDate;
     private final List<Worker> workers;
     private final List<Show> shows;
     private final Instant loadedAt;
@@ -20,12 +23,14 @@ public final class StoreSchedule {
 
     public StoreSchedule(
             Store store,
+            LocalDate scheduleDate,
             List<Worker> workers,
             List<Show> shows,
             Instant loadedAt,
             String sourceRevision
     ) {
         this.store = Objects.requireNonNull(store, "store");
+        this.scheduleDate = Objects.requireNonNull(scheduleDate, "scheduleDate");
         this.workers = List.copyOf(workers == null ? List.of() : workers);
         this.shows = List.copyOf(shows == null ? List.of() : shows);
         this.loadedAt = loadedAt == null ? Instant.now() : loadedAt;
@@ -50,8 +55,23 @@ public final class StoreSchedule {
         }
     }
 
+    /** Convenience when date is "today" in the store timezone is chosen by the caller. */
+    public StoreSchedule(
+            Store store,
+            List<Worker> workers,
+            List<Show> shows,
+            Instant loadedAt,
+            String sourceRevision
+    ) {
+        this(store, LocalDate.now(), workers, shows, loadedAt, sourceRevision);
+    }
+
     public Store getStore() {
         return store;
+    }
+
+    public LocalDate getScheduleDate() {
+        return scheduleDate;
     }
 
     public List<Worker> getWorkers() {

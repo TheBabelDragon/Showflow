@@ -18,6 +18,7 @@ import com.schedule.report.StoreReportGenerator;
 import com.schedule.source.ManualShowtimeSource;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
@@ -77,8 +78,10 @@ public final class SampleRunner {
                 List.of(main, side, gallery)
         ).fetch(store);
 
+        LocalDate scheduleDate = LocalDate.of(2026, 9, 19);
+
         StoreSchedule schedule = new StoreSchedule(
-                store, workers, shows, Instant.now(), "sample-v1"
+                store, scheduleDate, workers, shows, Instant.now(), "sample-v1"
         );
 
         SolveResult result = new AssignmentSolver().solve(
@@ -100,7 +103,8 @@ public final class SampleRunner {
         System.out.println(report.getJsonPayload());
         System.out.println("--- iCal (" + store.getOutputs().getIcalPath() + ") ---");
         System.out.println(report.getIcalPayload());
-        System.out.println("Revision: " + revision.getRevisionId()
-                + "  hash: " + revision.getScheduleHash().substring(0, 16) + "...");
+        System.out.println("Store: " + store.getId()
+                + "  date: " + schedule.getScheduleDate()
+                + "  revision: " + revision.getRevisionId());
     }
 }

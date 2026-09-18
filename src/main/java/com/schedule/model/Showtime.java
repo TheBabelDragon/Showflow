@@ -14,6 +14,10 @@ import java.util.Objects;
  * C = start + duration          // end event, not a range
  * B = [C - 45m, C]
  * </pre>
+ *
+ * <p><b>Same-calendar-day contract:</b> duration must not wrap past midnight.
+ * External API / iCal sources must normalize multi-day events before mapping
+ * into this model; the solver does not span calendar days.
  */
 public class Showtime {
 
@@ -64,7 +68,8 @@ public class Showtime {
         LocalTime derivedC = start.plusMinutes(durationMinutes);
         if (!start.isBefore(derivedC)) {
             throw new IllegalArgumentException(
-                    "Duration wraps past midnight; keep the performance on one calendar day"
+                    "Same-calendar-day contract: duration wraps past midnight; "
+                            + "normalize external sources before ingestion"
             );
         }
 
