@@ -13,6 +13,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
+/**
+ * Interactive single-store session. Store identity is chosen once;
+ * all workers and shows share that storeId.
+ */
 public class Main {
 
     public static void main(String[] args) {
@@ -24,9 +28,10 @@ public class Main {
 
         AdminConsole console = new AdminConsole();
 
+        String storeId = console.readStoreId();
         String dayLabel = console.readDayLabel();
-        List<Worker> workers = console.readWorkers();
-        List<Show> shows = console.readShows();
+        List<Worker> workers = console.readWorkers(storeId);
+        List<Show> shows = console.readShows(storeId);
 
         AssignmentSolver solver = new AssignmentSolver();
 
@@ -35,7 +40,7 @@ public class Main {
         DaySheetGenerator daySheetGenerator = new DaySheetGenerator();
 
         String daySheet = daySheetGenerator.generate(
-                dayLabel,
+                storeId + " / " + dayLabel,
                 workers,
                 shows,
                 result

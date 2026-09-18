@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Showflow — Store Operations</title>
+  <link rel="stylesheet" href="../style.css" />
+  <style>
+    .store-grid { display: grid; gap: 1rem; margin-top: 1.5rem; }
+    @media (min-width: 640px) { .store-grid { grid-template-columns: repeat(2, 1fr); } }
+    .store-card {
+      border: 1px solid var(--border, #333);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      background: var(--card, #1a1a1a);
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+    .store-card:hover { border-color: #6af; }
+    .store-id { font-family: ui-monospace, monospace; opacity: 0.7; font-size: 0.85rem; }
+    .store-name { font-size: 1.25rem; font-weight: 600; margin: 0.25rem 0; }
+  </style>
+</head>
+<body>
+  <main class="container" style="max-width: 720px; margin: 2rem auto; padding: 0 1rem;">
+    <h1>SHOWFLOW</h1>
+    <p>Store Operations</p>
+    <p style="opacity:0.75">Each store is an isolated scheduling identity: workers, showtimes, timezone, and reports never cross stores.</p>
+
+    <div class="store-grid">
+      <a class="store-card" href="STORE-001/">
+        <div class="store-id">STORE-001</div>
+        <div class="store-name">Mesa North</div>
+        <div>America/Phoenix · sample day</div>
+      </a>
+      <a class="store-card" href="STORE-002/">
+        <div class="store-id">STORE-002</div>
+        <div class="store-name">Tempe Central</div>
+        <div>Placeholder surface</div>
+      </a>
+    </div>
+
+    <p style="margin-top: 2rem">
+      <a href="../index.html">← Scheduler</a>
+    </p>
+  </main>
+</body>
+</html>

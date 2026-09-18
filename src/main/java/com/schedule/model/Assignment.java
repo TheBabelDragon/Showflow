@@ -8,6 +8,7 @@ import java.util.Objects;
 
 public class Assignment {
 
+    private final String storeId;
     private final String workerId;
     private final String showId;
     private final String showtimeId;
@@ -21,14 +22,22 @@ public class Assignment {
     private long score;
 
     public Assignment(
+            String storeId,
             String workerId,
             String showId,
             Showtime showtime,
             int coverageSlot
     ) {
+        this.storeId = Objects.requireNonNull(storeId, "storeId");
         this.workerId = Objects.requireNonNull(workerId, "workerId");
         this.showId = Objects.requireNonNull(showId, "showId");
         Objects.requireNonNull(showtime, "showtime");
+        if (!storeId.equals(showtime.getStoreId())) {
+            throw new IllegalArgumentException(
+                    "Showtime storeId " + showtime.getStoreId()
+                            + " does not match assignment storeId " + storeId
+            );
+        }
         this.showtimeId = showtime.getId();
         this.roomNumber = showtime.getRoomNumber();
         this.aWindow = showtime.getAWindow();
@@ -41,6 +50,31 @@ public class Assignment {
 
         this.coverageSlot = coverageSlot;
         this.diagnostics = new ArrayList<>();
+    }
+
+    /**
+     * Back-compat: derives storeId from showtime when present,
+     * otherwise STORE-DEFAULT.
+     */
+    public Assignment(
+            String workerId,
+            String showId,
+            Showtime showtime,
+            int coverageSlot
+    ) {
+        this(
+                showtime != null && showtime.getStoreId() != null
+                        ? showtime.getStoreId()
+                        : "STORE-DEFAULT",
+                workerId,
+                showId,
+                showtime,
+                coverageSlot
+        );
+    }
+
+    public String getStoreId() {
+        return storeId;
     }
 
     public String getWorkerId() {
@@ -114,7 +148,8 @@ public class Assignment {
     @Override
     public String toString() {
         return "Assignment{" +
-                "workerId='" + workerId + '\'' +
+                "storeId='" + storeId + '\'' +
+                ", workerId='" + workerId + '\'' +
                 ", showId='" + showId + '\'' +
                 ", showtimeId='" + showtimeId + '\'' +
                 ", room=" + roomNumber +
