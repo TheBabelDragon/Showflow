@@ -1,0 +1,16 @@
+{
+  "store": {
+    "id": "STORE-001",
+    "name": "Mesa North",
+    "timezone": "America/Phoenix"
+  },
+  "generatedAt": "pending-sample-run",
+  "revisionId": "sample",
+  "status": {
+    "fullyCovered": null,
+    "assignments": null,
+    "coverageGaps": null,
+    "warnings": null
+  },
+  "note": "Replace by running SampleRunner; JSON is emitted to stdout and can be written here."
+}

@@ -9,17 +9,19 @@ import java.util.Objects;
 
 public class Show {
 
+    private final String storeId;
     private final String id;
     private final String name;
     private final String theater;
     private final int guests;
     private final List<Showtime> showtimes;
 
-    public Show(String id, String name, int guests) {
-        this(id, name, guests, SchedulingConfig.DEFAULT_THEATER);
+    public Show(String storeId, String id, String name, int guests) {
+        this(storeId, id, name, guests, SchedulingConfig.DEFAULT_THEATER);
     }
 
-    public Show(String id, String name, int guests, String theater) {
+    public Show(String storeId, String id, String name, int guests, String theater) {
+        this.storeId = Objects.requireNonNull(storeId, "storeId");
         this.id = Objects.requireNonNull(id, "id");
         this.name = Objects.requireNonNull(name, "name");
         this.theater = theater == null || theater.isBlank()
@@ -32,6 +34,22 @@ public class Show {
 
         this.guests = guests;
         this.showtimes = new ArrayList<>();
+    }
+
+    /** @deprecated Prefer constructor with storeId for multi-store isolation. */
+    @Deprecated
+    public Show(String id, String name, int guests) {
+        this("STORE-DEFAULT", id, name, guests, SchedulingConfig.DEFAULT_THEATER);
+    }
+
+    /** @deprecated Prefer constructor with storeId for multi-store isolation. */
+    @Deprecated
+    public Show(String id, String name, int guests, String theater) {
+        this("STORE-DEFAULT", id, name, guests, theater);
+    }
+
+    public String getStoreId() {
+        return storeId;
     }
 
     public String getId() {
@@ -55,7 +73,14 @@ public class Show {
     }
 
     public void addShowtime(Showtime showtime) {
-        showtimes.add(Objects.requireNonNull(showtime, "showtime"));
+        Objects.requireNonNull(showtime, "showtime");
+        if (!storeId.equals(showtime.getStoreId())) {
+            throw new IllegalArgumentException(
+                    "Showtime storeId " + showtime.getStoreId()
+                            + " does not match show storeId " + storeId
+            );
+        }
+        showtimes.add(showtime);
     }
 
     public int workersRequired() {
@@ -71,6 +96,7 @@ public class Show {
 
     @Override
     public String toString() {
-        return name + " [" + id + "] - " + guests + " guests @ " + theater;
+        return name + " [" + id + "] store=" + storeId
+                + " - " + guests + " guests @ " + theater;
     }
 }

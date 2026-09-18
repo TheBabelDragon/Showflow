@@ -17,6 +17,7 @@ import java.util.Objects;
  */
 public class Showtime {
 
+    private final String storeId;
     private final String id;
     private final int roomNumber;
     private final LocalTime start;
@@ -27,11 +28,13 @@ public class Showtime {
     private final TimeRange operationalSpan;
 
     public Showtime(
+            String storeId,
             String id,
             int roomNumber,
             LocalTime start,
             int durationMinutes
     ) {
+        this.storeId = Objects.requireNonNull(storeId, "storeId");
         this.id = Objects.requireNonNull(id, "id");
         this.start = Objects.requireNonNull(start, "start");
 
@@ -76,6 +79,21 @@ public class Showtime {
         this.operationalSpan = new TimeRange(derivedAStart, derivedC);
     }
 
+    /** @deprecated Prefer constructor with storeId for multi-store isolation. */
+    @Deprecated
+    public Showtime(
+            String id,
+            int roomNumber,
+            LocalTime start,
+            int durationMinutes
+    ) {
+        this("STORE-DEFAULT", id, roomNumber, start, durationMinutes);
+    }
+
+    public String getStoreId() {
+        return storeId;
+    }
+
     public String getId() {
         return id;
     }
@@ -114,7 +132,8 @@ public class Showtime {
 
     @Override
     public String toString() {
-        return "Showtime[" + id + "] room " + roomNumber
+        return "Showtime[" + id + "] store=" + storeId
+                + " room " + roomNumber
                 + " start " + start
                 + " +" + durationMinutes + "m"
                 + " A=" + aWindow

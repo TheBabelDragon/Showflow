@@ -11,27 +11,30 @@ import java.util.Objects;
 
 public class Worker {
 
+    private final String storeId;
     private final String id;
     private final String name;
     private final List<TimeRange> availability;
     private final Map<String, Integer> leadWeightByTheater;
     private Zone preferredZone;
 
-    public Worker(String id, String name) {
-        this(id, name, List.of(), Map.of(), null);
+    public Worker(String storeId, String id, String name) {
+        this(storeId, id, name, List.of(), Map.of(), null);
     }
 
-    public Worker(String id, String name, List<TimeRange> availability) {
-        this(id, name, availability, Map.of(), null);
+    public Worker(String storeId, String id, String name, List<TimeRange> availability) {
+        this(storeId, id, name, availability, Map.of(), null);
     }
 
     public Worker(
+            String storeId,
             String id,
             String name,
             List<TimeRange> availability,
             Map<String, Integer> leadWeightByTheater,
             Zone preferredZone
     ) {
+        this.storeId = Objects.requireNonNull(storeId, "storeId");
         this.id = Objects.requireNonNull(id, "id");
         this.name = Objects.requireNonNull(name, "name");
         this.availability = new ArrayList<>(availability);
@@ -40,6 +43,34 @@ public class Worker {
             leadWeightByTheater.forEach(this::setLeadWeight);
         }
         this.preferredZone = preferredZone;
+    }
+
+    /** @deprecated Prefer constructor with storeId for multi-store isolation. */
+    @Deprecated
+    public Worker(String id, String name) {
+        this("STORE-DEFAULT", id, name, List.of(), Map.of(), null);
+    }
+
+    /** @deprecated Prefer constructor with storeId for multi-store isolation. */
+    @Deprecated
+    public Worker(String id, String name, List<TimeRange> availability) {
+        this("STORE-DEFAULT", id, name, availability, Map.of(), null);
+    }
+
+    /** @deprecated Prefer constructor with storeId for multi-store isolation. */
+    @Deprecated
+    public Worker(
+            String id,
+            String name,
+            List<TimeRange> availability,
+            Map<String, Integer> leadWeightByTheater,
+            Zone preferredZone
+    ) {
+        this("STORE-DEFAULT", id, name, availability, leadWeightByTheater, preferredZone);
+    }
+
+    public String getStoreId() {
+        return storeId;
     }
 
     public String getId() {
@@ -98,6 +129,6 @@ public class Worker {
 
     @Override
     public String toString() {
-        return name + " [" + id + "]";
+        return name + " [" + id + "] store=" + storeId;
     }
 }
